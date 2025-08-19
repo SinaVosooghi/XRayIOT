@@ -1,0 +1,106 @@
+version: "3.9"
+services:
+  # Test Infrastructure - Same as production but with test database
+  mongo-test:
+    image: mongo:7
+    env_file:
+      - .env.test
+    ports: ["${MONGO_PORT:-27018}:27017"]  # Different port to avoid conflicts
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-iotp-test}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+    volumes:
+      - mongo_test_data:/data/db
+      - ../init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # RabbitMQ
+  rabbit-test:
+    image: rabbitmq:3.12-management
+    container_name: iot-docker-rabbit-test
+    restart: unless-stopped
+    env_file:
+      - .env.test
+    ports:
+      - "${RABBITMQ_PORT:-5673}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-password}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbit_test_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis-test:
+    image: redis:7
+    env_file:
+      - .env.test
+    ports: ["${REDIS_PORT:-6380}:6379"]  # Different port
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Test Services
+  api-test:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - .env.test
+    ports: ["${API_PORT:-3002}:3000"]  # Different port
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  signals-test:
+    build:
+      context: .
+      dockerfile: apps/signals/Dockerfile
+    env_file:
+      - .env.test
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  producer-test:
+    build:
+      context: .
+      dockerfile: apps/producer/Dockerfile
+    env_file:
+      - .env.test
+    ports: ["${PRODUCER_PORT:-3003}:3000"]  # Map external 3003 to internal 3000
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+      rabbit-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+volumes:
+  mongo_test_data:
+  rabbit_test_data:
+  redis_test_data:

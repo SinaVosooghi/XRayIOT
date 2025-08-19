@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  # MongoDB
+  mongo:
+    image: mongo:7
+    container_name: iotp-mongo
+    restart: unless-stopped
+    ports: ["${DOCKER_MONGO_PORT:-27017}:27017"]
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-iotp}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+    volumes:
+      - mongo_data:/data/db
+      - ../init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # RabbitMQ
+  rabbit:
+    image: rabbitmq:3.13-management
+    container_name: iotp-rabbit
+    restart: unless-stopped
+    ports: ["${DOCKER_RABBITMQ_PORT:-5672}:5672", "${DOCKER_RABBITMQ_MANAGEMENT_PORT:-15672}:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-password}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis
+  redis:
+    image: redis:7
+    container_name: iotp-redis
+    restart: unless-stopped
+    ports: ["${DOCKER_REDIS_PORT:-6379}:6379"]
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongo_data:
+  rabbit_data:
+  redis_data:

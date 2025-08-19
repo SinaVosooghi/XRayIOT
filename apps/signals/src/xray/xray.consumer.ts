@@ -1,0 +1,133 @@
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { XRay } from './xray.schema';
+import { IRawStore } from '../raw/interfaces';
+import {
+  validateMessage,
+  generateIdempotencyKey,
+  normalizeXRayPayload,
+} from '@iotp/shared-messaging';
+import { ErrorHandlingService } from '../error-handling/error-handling.service';
+import { XRayPayloadAllFormats, XRayDocument, ProcessingContext, RawPayload } from '../types';
+
+@Injectable()
+export class XRayConsumer {
+  private readonly logger = new Logger(XRayConsumer.name);
+
+  constructor(
+    @InjectModel(XRay.name) private readonly xrayModel: Model<XRayDocument>,
+    @Inject('IRawStore') private readonly rawStore: IRawStore,
+    private readonly errorHandlingService: ErrorHandlingService
+  ) {}
+
+  @RabbitSubscribe({
+    exchange: 'iot.xray',
+    routingKey: 'xray.raw',
+  })
+  async processMessage(message: XRayPayloadAllFormats): Promise<void> {
+    const startTime = Date.now();
+    const messageId =
+      'id' in message && message.id && typeof message.id === 'string' ? message.id : 'unknown';
+    const deviceId = this.extractDeviceId(message);
+
+    // Note: processingContext is defined but not currently used
+    // It can be used for future error handling enhancements
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _processingContext: ProcessingContext = {
+      messageId,
+      deviceId,
+      timestamp: Date.now(),
+      retryCount: 0,
+      startTime,
+    };
+
+    try {
+      const result = await this.errorHandlingService.withRetry(
+        async () => {
+          this.logger.log(`Processing message: ${messageId} for device: ${deviceId}`);
+
+          // Validate message
+          const validationResult = validateMessage(message);
+          if (!validationResult.valid) {
+            this.logger.error(`Invalid message: ${validationResult.errors.join(', ')}`);
+            return false;
+          }
+
+          // Normalize the payload
+          const normalized = normalizeXRayPayload(message);
+
+          // Generate idempotency key
+          const idempotencyKey = generateIdempotencyKey(normalized);
+
+          // Check if already processed
+          const existing = await this.xrayModel.findOne({ idempotencyKey });
+          if (existing) {
+            this.logger.log(`Message already processed: ${idempotencyKey}`);
+            return true;
+          }
+
+          // Store raw payload
+          const rawRef = await this.rawStore.store(normalized as unknown as RawPayload);
+
+          // Calculate required fields
+          const dataLength = normalized.data ? normalized.data.length : 0;
+          const dataVolume = JSON.stringify(message).length;
+
+          // Convert time to Date if it's a number
+          const time =
+            typeof normalized.time === 'number' ? new Date(normalized.time) : normalized.time;
+
+          // Calculate location from first data point if available
+          let location;
+          if (normalized.data && normalized.data.length > 0 && normalized.data[0][1]) {
+            const [lat, lon] = normalized.data[0][1]; // Extract lat, lon from [lat, lon, speed]
+            location = { type: 'Point' as const, coordinates: [lon, lat] as [number, number] };
+          }
+
+          // Create signal record
+          const signal = new this.xrayModel({
+            deviceId: normalized.deviceId,
+            time,
+            dataLength,
+            dataVolume,
+            rawRef,
+            idempotencyKey,
+            location,
+          });
+
+          await signal.save();
+          this.logger.log(`Processed X-Ray data: ${signal._id?.toString() || 'unknown'}`);
+
+          return true;
+        },
+        'processXRayMessage',
+        { messageId, deviceId }
+      );
+
+      // Log the result but don't return it
+      if (result) {
+        this.logger.log('Message processed successfully');
+      } else {
+        this.logger.warn('Message processing failed or was skipped');
+      }
+    } catch (error) {
+      this.logger.error('Unexpected error in message processing:', error);
+    }
+  }
+
+  private extractDeviceId(message: XRayPayloadAllFormats): string {
+    if (typeof message === 'object' && message !== null) {
+      if ('deviceId' in message) {
+        return message.deviceId as string;
+      }
+      // Legacy format: {"<deviceId>": { data, time }}
+      const entries = Object.entries(message);
+      if (entries.length === 1) {
+        return entries[0][0];
+      }
+    }
+    return 'unknown';
+  }
+}

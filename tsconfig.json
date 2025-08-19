@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": true,
+    "removeComments": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "paths": {
+      "@iotp/shared-config": ["libs/shared-config/src"],
+      "@iotp/shared-utils": ["libs/shared-utils/src"],
+      "@iotp/shared-messaging": ["libs/shared-messaging/src"],
+      "@iotp/shared-types": ["libs/shared-types/src"],
+      "@iotp/shared-observability": ["libs/shared-observability/src"]
+    },
+    "rootDir": "./",
+    "preserveSymlinks": false
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "include": [
+    "apps/**/*",
+    "libs/**/*",
+    "e2e/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
