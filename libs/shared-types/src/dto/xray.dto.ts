@@ -1,3 +1,6 @@
+// Legacy XRay DTOs - DEPRECATED: Use signal.dto.ts instead
+// This file is kept for backward compatibility during migration
+
 import { IsString, IsNumber, IsArray, IsOptional, IsDateString, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -6,6 +9,7 @@ const TransformToInt = () => Transform(({ value }: { value: unknown }) => parseI
 const TransformToFloat = () =>
   Transform(({ value }: { value: unknown }) => parseFloat(String(value)));
 
+// DEPRECATED: Use CreateSignalDto from signal.dto.ts instead
 export class CreateSignalDto {
   @IsString()
   deviceId!: string;
@@ -14,9 +18,10 @@ export class CreateSignalDto {
   time!: number;
 
   @IsArray()
-  data!: Array<[number, [number, number, number]]>;
+  data!: Array<[number, [number, number, number]]>; // [timestamp, [lat, lon, speed]]
 }
 
+// DEPRECATED: Use CreateSignalDto from signal.dto.ts instead
 export class CreateSignalDtoWithValidation {
   @IsString()
   deviceId!: string;
@@ -25,9 +30,10 @@ export class CreateSignalDtoWithValidation {
   time!: number;
 
   @IsArray()
-  data!: Array<[number, [number, number, number]]>;
+  data!: Array<[number, [number, number, number]]>; // [timestamp, [lat, lon, speed]]
 }
 
+// DEPRECATED: Use ExtendedQuerySignalsDto from signal.dto.ts instead
 export class QuerySignalsDto {
   @IsOptional() @IsString() deviceId?: string;
   @IsOptional() @IsDateString() from?: string;
@@ -89,6 +95,7 @@ export class QuerySignalsDto {
   @IsOptional() @IsString() search?: string; // Search in deviceId
 }
 
+// DEPRECATED: Use SignalDto from signal.dto.ts instead
 export class SignalResponseDto {
   _id!: string;
   deviceId!: string;
@@ -116,3 +123,12 @@ export class SignalResponseDto {
   createdAt!: Date;
   updatedAt!: Date;
 }
+
+// Re-export canonical types for easy migration
+export {
+  CreateSignalDto as CanonicalCreateSignalDto,
+  DataPoint,
+  SignalDto,
+  BaseQuerySignalsDto,
+  ExtendedQuerySignalsDto,
+} from './signal.dto';

@@ -93,10 +93,20 @@ export class RawStoreGridFS implements IRawStore {
 
       const file = files[0] as GridFSFile;
       return {
-        id: file._id.toString(),
-        size: file.length,
-        hash: (file.metadata?.hash as string) || '',
+        success: true,
+        operation: 'getMetadata',
+        resource: ref,
+        fileId: file._id.toString(),
         url: undefined,
+        metadata: {
+          filename: 'unknown',
+          originalName: 'unknown',
+          mimeType: 'application/octet-stream',
+          size: file.length,
+          encoding: 'binary',
+          hash: (file.metadata?.hash as string) || '',
+          uploadedAt: file.uploadDate || new Date(),
+        },
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

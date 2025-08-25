@@ -5,7 +5,7 @@ import { Response } from 'express';
 import { GridFSBucket, ObjectId } from 'mongodb';
 import * as crypto from 'crypto';
 import { SignalsValidationService } from './signals-validation.service';
-import { XRayDocument, XRaySignalsPayload } from '@iotp/shared-types';
+import { XRaySignalsPayload, Paginated, SignalDto, XRayDocument } from '@iotp/shared-types';
 import {
   SignalQuery,
   DeviceStatsQuery,
@@ -31,7 +31,7 @@ export class SignalsService {
     this.gfs = new GridFSBucket(this.conn.db, { bucketName: 'rawPayloads' });
   }
 
-  async findAll(querySignalsDto: SignalQuery) {
+  async findAll(querySignalsDto: SignalQuery): Promise<Paginated<SignalDto>> {
     // Validate query parameters
     this.validationService.validateQueryParams(querySignalsDto);
 
@@ -116,20 +116,41 @@ export class SignalsService {
       .skip(skip)
       .limit(limit)
       .lean();
+
+    const total = await this.model.countDocuments(filter);
+    const page = Math.floor(skip / limit) + 1;
+    const hasNext = skip + docs.length < total;
+    const hasPrev = skip > 0;
     const nextCursor = docs.length ? docs[docs.length - 1]._id : null;
 
-    return { items: docs, nextCursor };
+    return {
+      items: docs as unknown as SignalDto[],
+      total,
+      page,
+      limit,
+      hasNext,
+      hasPrev,
+      cursor: nextCursor
+        ? typeof nextCursor === 'string'
+          ? nextCursor
+          : nextCursor instanceof ObjectId
+            ? nextCursor.toString()
+            : typeof nextCursor === 'object'
+              ? JSON.stringify(nextCursor)
+              : String(nextCursor)
+        : undefined,
+    };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<SignalDto> {
     const signal = await this.model.findById(id);
     if (!signal) {
       throw new NotFoundException(`Signal with ID ${id} not found`);
     }
-    return signal;
+    return signal as unknown as SignalDto;
   }
 
-  async create(createSignalDto: XRaySignalsPayload) {
+  async create(createSignalDto: XRaySignalsPayload): Promise<SignalDto> {
     // Validate input data
     this.validationService.validateSignalData(createSignalDto);
 
@@ -175,10 +196,11 @@ export class SignalsService {
       updatedAt: new Date(),
     };
 
-    return this.model.create(signalData);
+    const result = await this.model.create(signalData);
+    return result as unknown as SignalDto;
   }
 
-  async update(id: string, updateSignalDto: Partial<XRaySignalsPayload>) {
+  async update(id: string, updateSignalDto: Partial<XRaySignalsPayload>): Promise<SignalDto> {
     const updatedSignal = await this.model.findByIdAndUpdate(
       id,
       { ...updateSignalDto, updatedAt: new Date() },
@@ -189,15 +211,15 @@ export class SignalsService {
       throw new NotFoundException(`Signal with ID ${id} not found`);
     }
 
-    return updatedSignal;
+    return updatedSignal as unknown as SignalDto;
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<boolean> {
     const deletedSignal = await this.model.findByIdAndDelete(id);
     if (!deletedSignal) {
       throw new NotFoundException(`Signal with ID ${id} not found`);
     }
-    return { message: 'Signal deleted successfully' };
+    return true;
   }
 
   streamRawData(rawRef: string, res: Response) {

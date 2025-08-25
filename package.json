@@ -23,6 +23,7 @@
     "test:signals": "jest --testPathPatterns=apps/signals",
     "test:producer": "jest --testPathPatterns=apps/producer",
     "test:e2e": "jest --config e2e/jest-e2e.config.js",
+
     "test:docker:setup": "docker-compose -f docker-compose.test-full.yml up -d",
     "test:docker:teardown": "docker-compose -f docker-compose-full.test.yml down -v",
     "test:docker:logs": "docker-compose -f docker-compose-full.test.yml logs -f",

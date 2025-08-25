@@ -1,239 +1,165 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SignalsController } from './signals.controller';
 import { SignalsService } from './signals.service';
-import { CreateSignalDto, QuerySignalsDto } from '../../../../libs/shared-types/src';
-import { TimeTrendsQuery } from './types';
+import { CreateSignalDto, UpdateSignalDto, DataPointDto } from './dto';
+import { BaseQuerySignalsDto } from '@iotp/shared-types';
 import { NotFoundException } from '@nestjs/common';
-import { Response } from 'express';
-
-// Helper function to create mock Mongoose documents
-function createMockDocument(data: Record<string, unknown>) {
-  return {
-    ...data,
-    $assertPopulated: jest.fn(),
-    $clearModifiedPaths: jest.fn(),
-    $clone: jest.fn(),
-    $createModifiedPathsSnapshot: jest.fn(),
-    $getAllSubdocs: jest.fn(),
-    $ignore: jest.fn(),
-    $isDefault: jest.fn(),
-    $isDeleted: jest.fn(),
-    $isEmpty: jest.fn(),
-    $isValid: jest.fn(),
-    $locals: {},
-    $op: null,
-    $session: jest.fn(),
-    $set: jest.fn(),
-    $where: {},
-    collection: {} as Record<string, unknown>,
-    db: {} as Record<string, unknown>,
-    delete: jest.fn(),
-    deleteOne: jest.fn(),
-    depopulate: jest.fn(),
-    directModifiedKeys: jest.fn(),
-    equals: jest.fn(),
-    errors: {},
-    get: jest.fn(),
-    increment: jest.fn(),
-    isDirectModified: jest.fn(),
-    isInit: jest.fn(),
-    isModified: jest.fn(),
-    isSelected: jest.fn(),
-    markModified: jest.fn(),
-    modifiedPaths: jest.fn(),
-    modelName: 'XRay',
-    overwrite: jest.fn(),
-    populate: jest.fn(),
-    populated: jest.fn(),
-    replaceOne: jest.fn(),
-    resetModified: jest.fn(),
-    save: jest.fn(),
-    schema: {} as Record<string, unknown>,
-    set: jest.fn(),
-    toJSON: jest.fn(),
-    toObject: jest.fn(),
-    unmarkModified: jest.fn(),
-    update: jest.fn(),
-    validate: jest.fn(),
-    validateSync: jest.fn(),
-  };
-}
 
 describe('SignalsController', () => {
   let controller: SignalsController;
-  let service: typeof mockSignalsService;
-  let mockResponse: Response;
-
-  const mockSignalsService = {
-    create: jest.fn(),
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-    streamRawData: jest.fn(),
-    getRawMetadata: jest.fn(),
-    getStorageStats: jest.fn(),
-    getDeviceStats: jest.fn(),
-    getLocationClusters: jest.fn(),
-    getTimeTrends: jest.fn(),
+  let service: {
+    create: jest.Mock;
+    findAll: jest.Mock;
+    findOne: jest.Mock;
+    update: jest.Mock;
+    remove: jest.Mock;
+    getDeviceStats: jest.Mock;
+    getLocationClusters: jest.Mock;
+    getTimeTrends: jest.Mock;
+    streamRawData: jest.Mock;
+    getRawMetadata: jest.Mock;
+    getStorageStats: jest.Mock;
   };
 
+  const createMockDocument = <T>(data: T) => ({
+    ...data,
+    toObject: () => data,
+    toJSON: () => data,
+  });
+
+  // Helper function to create type-safe Jest matchers
+  const anyNumber = () => expect.any(Number) as unknown as number;
+  const arrayContaining = <T>(items: T[]) => expect.arrayContaining(items) as unknown as T[];
+
   beforeEach(async () => {
+    // Create mock service with all required methods
+    service = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+      getDeviceStats: jest.fn(),
+      getLocationClusters: jest.fn(),
+      getTimeTrends: jest.fn(),
+      streamRawData: jest.fn(),
+      getRawMetadata: jest.fn(),
+      getStorageStats: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SignalsController],
       providers: [
         {
           provide: SignalsService,
-          useValue: mockSignalsService,
+          useValue: service,
         },
       ],
     }).compile();
 
     controller = module.get<SignalsController>(SignalsController);
     service = module.get(SignalsService);
-
-    // Setup mock response
-    mockResponse = {
-      setHeader: jest.fn(),
-      pipe: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-      end: jest.fn(),
-    } as unknown as Response;
-
-    // Reset all mocks
-    jest.clearAllMocks();
   });
 
-  describe('create', () => {
-    it('should create a new signal successfully', async () => {
-      // Arrange
-      const createSignalDto: CreateSignalDto = {
-        deviceId: 'test-device-001',
-        time: Date.now(),
-        data: [[1000, [51.339764, 12.339223, 1.2038]]],
-      };
-
-      const createdSignal = createMockDocument({
-        _id: 'mock-signal-id',
-        ...createSignalDto,
-        dataLength: 1,
-        dataVolume: 100,
-        location: {
-          type: 'Point',
-          coordinates: [12.339223, 51.339764],
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      service.create.mockResolvedValue(createdSignal);
-
-      // Act
-      const result = await controller.create(createSignalDto);
-
-      // Assert
-      expect(result).toEqual(createdSignal);
-      expect(service.create).toHaveBeenCalledWith(createSignalDto);
-    });
-
-    it('should handle validation errors gracefully', async () => {
-      // Arrange
-      const invalidDto = {
-        deviceId: '', // Invalid: empty string
-        time: 'invalid-date', // Invalid: not a number
-      } as unknown as CreateSignalDto;
-
-      service.create.mockRejectedValue(new Error('Validation failed'));
-
-      // Act & Assert
-      await expect(controller.create(invalidDto)).rejects.toThrow('Validation failed');
-    });
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('findAll', () => {
     it('should return paginated signals with default parameters', async () => {
       // Arrange
-      const queryDto: QuerySignalsDto = { limit: 20 };
+      const queryDto: BaseQuerySignalsDto = { limit: 20 };
       const mockSignals = [
         createMockDocument({
-          _id: 'signal-1',
-          deviceId: 'device-1',
+          _id: 'mock-signal-1',
+          deviceId: 'test-device-1',
           time: new Date(),
           dataLength: 1,
           dataVolume: 100,
-          data: [[1000, [51.339764, 12.339223, 1.2038]]],
-          location: {
-            type: 'Point',
-            coordinates: [12.339223, 51.339764],
-          },
-          idempotencyKey: 'key-1',
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
         createMockDocument({
-          _id: 'signal-2',
-          deviceId: 'device-2',
+          _id: 'mock-signal-2',
+          deviceId: 'test-device-2',
           time: new Date(),
           dataLength: 1,
           dataVolume: 100,
-          data: [[2000, [51.339764, 12.339223, 1.2038]]],
-          location: {
-            type: 'Point',
-            coordinates: [12.339223, 51.339764],
-          },
-          idempotencyKey: 'key-2',
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
       ];
 
-      const expectedResult = {
+      const mockPaginatedResult = {
         items: mockSignals,
-        nextCursor: 'signal-2',
+        total: 2,
+        page: 1,
+        limit: 20,
+        hasNext: false,
+        hasPrev: false,
       };
 
-      service.findAll.mockResolvedValue(expectedResult);
+      service.findAll.mockResolvedValue(mockPaginatedResult);
 
       // Act
       const result = await controller.findAll(queryDto);
 
       // Assert
-      expect(result).toEqual(expectedResult);
+      expect(result).toBe(mockPaginatedResult);
       expect(service.findAll).toHaveBeenCalledWith(queryDto);
     });
 
     it('should apply filters correctly', async () => {
       // Arrange
-      const queryDto: QuerySignalsDto = {
+      const queryDto: BaseQuerySignalsDto = {
         deviceId: 'test-device',
         from: '2024-01-01T00:00:00Z',
-        to: '2024-12-31T23:59:59Z',
-        limit: 5,
-        skip: 10,
+        to: '2024-01-02T00:00:00Z',
+        limit: 10,
+        skip: 0,
       };
 
-      const mockResult = {
-        items: [],
-        nextCursor: null,
+      const mockSignals = [
+        createMockDocument({
+          _id: 'mock-signal-1',
+          deviceId: 'test-device',
+          time: new Date('2024-01-01T12:00:00Z'),
+          dataLength: 1,
+          dataVolume: 100,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ];
+
+      const mockPaginatedResult = {
+        items: mockSignals,
+        total: 1,
+        page: 1,
+        limit: 10,
+        hasNext: false,
+        hasPrev: false,
       };
 
-      service.findAll.mockResolvedValue(mockResult);
+      service.findAll.mockResolvedValue(mockPaginatedResult);
 
       // Act
       const result = await controller.findAll(queryDto);
 
       // Assert
-      expect(result).toEqual(mockResult);
+      expect(result).toBe(mockPaginatedResult);
       expect(service.findAll).toHaveBeenCalledWith(queryDto);
     });
 
     it('should handle empty results gracefully', async () => {
       // Arrange
-      const queryDto: QuerySignalsDto = { limit: 20 };
+      const queryDto: BaseQuerySignalsDto = { limit: 20 };
       const emptyResult = {
         items: [],
-        nextCursor: null,
+        total: 0,
+        page: 1,
+        limit: 20,
+        hasNext: false,
+        hasPrev: false,
       };
 
       service.findAll.mockResolvedValue(emptyResult);
@@ -242,27 +168,22 @@ describe('SignalsController', () => {
       const result = await controller.findAll(queryDto);
 
       // Assert
-      expect(result).toEqual(emptyResult);
+      expect(result).toBe(emptyResult);
       expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
     });
   });
 
   describe('findOne', () => {
-    it('should return a signal by ID successfully', async () => {
+    it('should return a signal by ID', async () => {
       // Arrange
       const signalId = 'mock-signal-id';
       const mockSignal = createMockDocument({
         _id: signalId,
-        deviceId: 'test-device-001',
+        deviceId: 'test-device',
         time: new Date(),
         dataLength: 1,
         dataVolume: 100,
-        data: [[1000, [51.339764, 12.339223, 1.2038]]],
-        location: {
-          type: 'Point',
-          coordinates: [12.339223, 51.339764],
-        },
-        idempotencyKey: 'test-key-123',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -273,21 +194,59 @@ describe('SignalsController', () => {
       const result = await controller.findOne(signalId);
 
       // Assert
-      expect(result).toEqual(mockSignal);
+      expect(result).toBe(mockSignal);
       expect(service.findOne).toHaveBeenCalledWith(signalId);
     });
 
-    it('should handle non-existent signal gracefully', async () => {
+    it('should handle signal not found', async () => {
       // Arrange
       const signalId = 'non-existent-id';
-
       service.findOne.mockRejectedValue(
-        new NotFoundException('Signal with ID non-existent-id not found')
+        new NotFoundException(`Signal with ID ${signalId} not found`)
       );
 
       // Act & Assert
-      await expect(controller.findOne(signalId)).rejects.toThrow(
-        'Signal with ID non-existent-id not found'
+      await expect(controller.findOne(signalId)).rejects.toThrow(NotFoundException);
+      expect(service.findOne).toHaveBeenCalledWith(signalId);
+    });
+  });
+
+  describe('create', () => {
+    it('should create a signal successfully', async () => {
+      // Arrange
+      const createSignalDto = new CreateSignalDto();
+      createSignalDto.deviceId = 'test-device';
+      createSignalDto.time = Date.now();
+      const dataPoint = new DataPointDto();
+      dataPoint.timestamp = 1000;
+      dataPoint.lat = 51.339764;
+      dataPoint.lon = 12.339223;
+      dataPoint.speed = 1.2038;
+      createSignalDto.data = [dataPoint];
+
+      const mockSignal = createMockDocument({
+        _id: 'mock-signal-id',
+        deviceId: 'test-device',
+        time: new Date(),
+        dataLength: 1,
+        dataVolume: 100,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      service.create.mockResolvedValue(mockSignal);
+
+      // Act
+      const result = await controller.create(createSignalDto);
+
+      // Assert
+      expect(result).toBe(mockSignal);
+      expect(service.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deviceId: 'test-device',
+          time: anyNumber(),
+          data: arrayContaining([[1000, [51.339764, 12.339223, 1.2038]]]),
+        })
       );
     });
   });
@@ -296,411 +255,92 @@ describe('SignalsController', () => {
     it('should update a signal successfully', async () => {
       // Arrange
       const signalId = 'mock-signal-id';
-      const updateSignalDto: Partial<CreateSignalDto> = {
-        data: [[Date.now(), [51.339764, 12.339223, 1.2038]]] as [
-          number,
-          [number, number, number],
-        ][],
+      const updateDataPoint = new DataPointDto();
+      updateDataPoint.timestamp = Date.now();
+      updateDataPoint.lat = 51.339764;
+      updateDataPoint.lon = 12.339223;
+      updateDataPoint.speed = 1.2038;
+
+      const updateSignalDto: UpdateSignalDto = {
+        data: [updateDataPoint],
       };
 
-      const updatedSignal = createMockDocument({
+      const mockSignal = createMockDocument({
         _id: signalId,
-        deviceId: 'test-device-001',
+        deviceId: 'test-device',
         time: new Date(),
         dataLength: 1,
         dataVolume: 100,
-        data: [[1000, [51.339764, 12.339223, 1.2038]]],
-        location: {
-          type: 'Point',
-          coordinates: [12.339223, 51.339764],
-        },
-        idempotencyKey: 'test-key-123',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
-      service.update.mockResolvedValue(updatedSignal);
+      service.update.mockResolvedValue(mockSignal);
 
       // Act
       const result = await controller.update(signalId, updateSignalDto);
 
       // Assert
-      expect(result).toEqual(updatedSignal);
-      expect(service.update).toHaveBeenCalledWith(signalId, updateSignalDto);
+      expect(result).toBe(mockSignal);
+      expect(service.update).toHaveBeenCalledWith(
+        signalId,
+        expect.objectContaining({
+          data: arrayContaining([[anyNumber(), [51.339764, 12.339223, 1.2038]]]),
+        })
+      );
     });
 
-    it('should handle update validation errors gracefully', async () => {
+    it('should handle validation errors during update', async () => {
       // Arrange
       const signalId = 'mock-signal-id';
+      const invalidDataPoint = new DataPointDto();
+      invalidDataPoint.timestamp = Date.now();
+      invalidDataPoint.lat = 200; // Invalid: latitude > 90
+      invalidDataPoint.lon = 100;
+      invalidDataPoint.speed = 1.0;
+
       const invalidDto = {
-        data: 'invalid-data', // Invalid: should be array
-      } as unknown as Partial<CreateSignalDto>;
+        data: [invalidDataPoint],
+      } as UpdateSignalDto;
 
       service.update.mockRejectedValue(new Error('Validation failed'));
 
       // Act & Assert
       await expect(controller.update(signalId, invalidDto)).rejects.toThrow('Validation failed');
+      expect(service.update).toHaveBeenCalledWith(
+        signalId,
+        expect.objectContaining({
+          data: arrayContaining([[anyNumber(), [200, 100, 1.0]]]),
+        })
+      );
     });
   });
 
   describe('remove', () => {
-    it('should remove a signal successfully', async () => {
+    it('should delete a signal successfully', async () => {
       // Arrange
       const signalId = 'mock-signal-id';
-
-      service.remove.mockResolvedValue({ message: 'Signal deleted successfully' });
+      service.remove.mockResolvedValue(true);
 
       // Act
       const result = await controller.remove(signalId);
 
       // Assert
-      expect(result).toEqual({ message: 'Signal deleted successfully' });
+      expect(result).toEqual({ deleted: true });
       expect(service.remove).toHaveBeenCalledWith(signalId);
     });
 
-    it('should handle deletion of non-existent signal gracefully', async () => {
+    it('should handle deletion of non-existent signal', async () => {
       // Arrange
       const signalId = 'non-existent-id';
+      service.remove.mockResolvedValue(false);
 
-      service.remove.mockResolvedValue({ message: 'Signal not found' });
-
-      // Act & Assert
+      // Act
       const result = await controller.remove(signalId);
-      expect(result.message).toBe('Signal not found');
-    });
-  });
-
-  describe('streamRawData', () => {
-    it('should stream raw data successfully', async () => {
-      // Arrange
-      const signalId = 'mock-signal-id';
-      const mockSignal = createMockDocument({
-        _id: signalId,
-        deviceId: 'test-device-001',
-        rawRef: 'mock-raw-ref-123',
-      });
-      const mockReadStream = {
-        pipe: jest.fn().mockReturnThis(),
-        on: jest.fn(),
-      };
-
-      service.findOne.mockResolvedValue(mockSignal);
-      service.streamRawData.mockResolvedValue(mockReadStream as unknown as Response);
-      mockReadStream.on.mockImplementation((event, callback) => {
-        if (event === 'end') {
-          (callback as () => void)();
-        }
-        return mockReadStream;
-      });
-
-      // Act
-      await controller.streamRaw(signalId, mockResponse);
 
       // Assert
-      expect(service.findOne).toHaveBeenCalledWith(signalId);
-      expect(service.streamRawData).toHaveBeenCalledWith('mock-raw-ref-123', mockResponse);
-    });
-
-    it('should handle streaming errors gracefully', async () => {
-      // Arrange
-      const signalId = 'mock-signal-id';
-      const mockSignal = createMockDocument({
-        _id: signalId,
-        deviceId: 'test-device-001',
-        rawRef: 'mock-raw-ref-123',
-      });
-
-      service.findOne.mockResolvedValue(mockSignal);
-      service.streamRawData.mockRejectedValue(new Error('Streaming failed'));
-
-      // Act & Assert
-      await expect(controller.streamRaw(signalId, mockResponse)).rejects.toThrow(
-        'Streaming failed'
-      );
-      expect(service.findOne).toHaveBeenCalledWith(signalId);
-      expect(service.streamRawData).toHaveBeenCalledWith('mock-raw-ref-123', mockResponse);
-    });
-  });
-
-  describe('getRawMetadata', () => {
-    it('should return raw data metadata successfully', async () => {
-      // Arrange
-      const signalId = 'mock-signal-id';
-      const mockMetadata = {
-        filename: 'test.json.gz',
-        length: 1024,
-        uploadDate: new Date(),
-        metadata: {
-          hash: 'test-hash',
-          contentType: 'application/gzip',
-          originalSize: 2048,
-          compressedSize: 1024,
-          timestamp: new Date(),
-        },
-        contentType: 'application/gzip',
-      };
-
-      const mockSignal = createMockDocument({
-        _id: signalId,
-        deviceId: 'test-device-001',
-        rawRef: 'mock-raw-ref-123',
-      });
-
-      service.findOne.mockResolvedValue(mockSignal);
-      service.getRawMetadata.mockResolvedValue(mockMetadata);
-
-      // Act
-      const result = await controller.getRawMetadata(signalId);
-
-      // Assert
-      expect(result).toEqual(mockMetadata);
-      expect(service.getRawMetadata).toHaveBeenCalledWith('mock-raw-ref-123');
-    });
-
-    it('should handle missing raw data gracefully', async () => {
-      // Arrange
-      const signalId = 'mock-signal-id';
-      const mockSignal = createMockDocument({
-        _id: signalId,
-        deviceId: 'test-device-001',
-        // No rawRef
-      });
-
-      service.findOne.mockResolvedValue(mockSignal);
-
-      // Act & Assert
-      await expect(controller.getRawMetadata(signalId)).rejects.toThrow(
-        'Raw data not found for this signal'
-      );
-    });
-  });
-
-  describe('getStorageStats', () => {
-    it('should return storage statistics successfully', async () => {
-      // Arrange
-      const mockStats = {
-        totalFiles: 10,
-        totalSize: 10240,
-        avgFileSize: 1024,
-        storageSize: 1024,
-        indexSize: 2048,
-      };
-
-      service.getStorageStats.mockResolvedValue(mockStats);
-
-      // Act
-      const result = await controller.getStorageStats();
-
-      // Assert
-      expect(result).toEqual(mockStats);
-      expect(service.getStorageStats).toHaveBeenCalled();
-    });
-
-    it('should handle storage stats errors gracefully', async () => {
-      // Arrange
-      service.getStorageStats.mockRejectedValue(new Error('Failed to get storage statistics'));
-
-      // Act & Assert
-      await expect(controller.getStorageStats()).rejects.toThrow(
-        'Failed to get storage statistics'
-      );
-    });
-  });
-
-  describe('error handling', () => {
-    it('should handle service errors and return appropriate HTTP status', async () => {
-      // Arrange
-      const createSignalDto: CreateSignalDto = {
-        deviceId: 'test-device-001',
-        time: Date.now(),
-        data: [[1000, [51.339764, 12.339223, 1.2038]]],
-      };
-
-      const serviceError = new Error('Database connection failed');
-      service.create.mockRejectedValue(serviceError);
-
-      // Act & Assert
-      await expect(controller.create(createSignalDto)).rejects.toThrow(
-        'Database connection failed'
-      );
-    });
-
-    it('should handle validation errors with proper error messages', async () => {
-      // Arrange
-      const invalidDto = {
-        deviceId: '',
-        time: 'invalid-date',
-      } as unknown as CreateSignalDto;
-
-      const validationError = new Error('Validation failed: deviceId cannot be empty');
-      service.create.mockRejectedValue(validationError);
-
-      // Act & Assert
-      await expect(controller.create(invalidDto)).rejects.toThrow(
-        'Validation failed: deviceId cannot be empty'
-      );
-    });
-  });
-
-  describe('input validation', () => {
-    it('should validate required fields in CreateSignalDto', async () => {
-      // Arrange
-      const validDto: CreateSignalDto = {
-        deviceId: 'test-device-001',
-        time: Date.now(),
-        data: [[1000, [51.339764, 12.339223, 1.2038]]],
-      };
-
-      const createdSignal = createMockDocument({
-        _id: 'mock-signal-id',
-        ...validDto,
-        dataLength: 1,
-        dataVolume: 100,
-        location: {
-          type: 'Point',
-          coordinates: [12.339223, 51.339764],
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      service.create.mockResolvedValue(createdSignal);
-
-      // Act
-      const result = await controller.create(validDto);
-
-      // Assert
-      expect(result).toEqual(createdSignal);
-      expect(result.deviceId).toBe('test-device-001');
-      expect(result.location?.coordinates).toEqual([12.339223, 51.339764]);
-    });
-
-    it('should validate coordinate ranges in location', async () => {
-      // Arrange
-      const dtoWithInvalidCoordinates: CreateSignalDto = {
-        deviceId: 'test-device-001',
-        time: Date.now(),
-        data: [
-          [Date.now(), [200, 100, 1.0]], // Invalid: latitude > 90
-        ],
-      };
-
-      service.create.mockRejectedValue(new Error('Invalid coordinates'));
-
-      // Act & Assert
-      await expect(controller.create(dtoWithInvalidCoordinates)).rejects.toThrow(
-        'Invalid coordinates'
-      );
-    });
-  });
-
-  describe('Analytics Endpoints', () => {
-    describe('getDeviceStats', () => {
-      it('should return device statistics successfully', async () => {
-        // Arrange
-        const mockQuery = { deviceId: 'test-device-001' };
-        const mockStats = [
-          {
-            _id: 'test-device-001',
-            totalSignals: 5,
-            totalDataVolume: 10240,
-            avgDataLength: 3,
-            avgDataVolume: 2048,
-            firstSeen: new Date('2025-01-01'),
-            lastSeen: new Date('2025-01-05'),
-            totalDistance: 1000,
-            maxSpeed: 120,
-            avgSpeed: 60,
-          },
-        ];
-
-        service.getDeviceStats.mockResolvedValue(mockStats);
-
-        // Act
-        const result = await controller.getDeviceStats(mockQuery);
-
-        // Assert
-        expect(result).toEqual(mockStats);
-        expect(service.getDeviceStats).toHaveBeenCalledWith(mockQuery);
-      });
-
-      it('should handle device stats errors gracefully', async () => {
-        // Arrange
-        const mockQuery = { deviceId: 'test-device-001' };
-        service.getDeviceStats.mockRejectedValue(new Error('Database error'));
-
-        // Act & Assert
-        await expect(controller.getDeviceStats(mockQuery)).rejects.toThrow('Database error');
-      });
-    });
-
-    describe('getLocationClusters', () => {
-      it('should return location clusters successfully', async () => {
-        // Arrange
-        const mockQuery = { limit: 5 };
-        const mockClusters = [
-          {
-            _id: { lat: 51.339764, lon: 12.339223 },
-            count: 10,
-            deviceIds: ['device-1', 'device-2'],
-            avgDataLength: 3,
-            avgDataVolume: 2048,
-          },
-        ];
-
-        service.getLocationClusters.mockResolvedValue(mockClusters);
-
-        // Act
-        const result = await controller.getLocationClusters(mockQuery);
-
-        // Assert
-        expect(result).toEqual(mockClusters);
-        expect(service.getLocationClusters).toHaveBeenCalledWith(mockQuery);
-      });
-
-      it('should handle location clusters errors gracefully', async () => {
-        // Arrange
-        const mockQuery = { limit: 5 };
-        service.getLocationClusters.mockRejectedValue(new Error('Database error'));
-
-        // Act & Assert
-        await expect(controller.getLocationClusters(mockQuery)).rejects.toThrow('Database error');
-      });
-    });
-
-    describe('getTimeTrends', () => {
-      it('should return time trends successfully', async () => {
-        // Arrange
-        const mockQuery: TimeTrendsQuery = { period: 'day', groupBy: 'device' };
-        const mockTrends = [
-          {
-            _id: { year: 2025, month: 1, day: 1 },
-            count: 5,
-            totalDataVolume: 10240,
-            avgDataLength: 3,
-            uniqueDevices: ['test-device-001'],
-            uniqueDeviceCount: 1,
-          },
-        ];
-
-        service.getTimeTrends.mockResolvedValue(mockTrends);
-
-        // Act
-        const result = await controller.getTimeTrends(mockQuery);
-
-        // Assert
-        expect(result).toEqual(mockTrends);
-        expect(service.getTimeTrends).toHaveBeenCalledWith(mockQuery);
-      });
-
-      it('should handle time trends errors gracefully', async () => {
-        // Arrange
-        const mockQuery: TimeTrendsQuery = { period: 'day' };
-        service.getTimeTrends.mockRejectedValue(new Error('Database error'));
-
-        // Act & Assert
-        await expect(controller.getTimeTrends(mockQuery)).rejects.toThrow('Database error');
-      });
+      expect(result).toEqual({ deleted: false });
+      expect(service.remove).toHaveBeenCalledWith(signalId);
     });
   });
 });

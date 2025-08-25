@@ -31,8 +31,9 @@ describe('RawService', () => {
     it('should store data successfully', async () => {
       const testData = {
         deviceId: 'test-device',
-        data: [{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] as [number, number, number] }],
-        time: Date.now(),
+        timestamp: Date.now(),
+        data: JSON.stringify([{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] }]),
+        format: 'json' as const,
       };
       const mockRef = 'mock-ref-123';
 
@@ -46,8 +47,9 @@ describe('RawService', () => {
     it('should handle storage errors gracefully', async () => {
       const testData = {
         deviceId: 'test-device',
-        data: [{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] as [number, number, number] }],
-        time: Date.now(),
+        timestamp: Date.now(),
+        data: JSON.stringify([{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] }]),
+        format: 'json' as const,
       };
 
       mockRawStore.store.mockRejectedValue(new Error('Storage failed'));
@@ -74,10 +76,20 @@ describe('RawService', () => {
     it('should return metadata successfully', async () => {
       const ref = 'test-ref';
       const mockMetadata = {
-        id: 'test-ref',
-        size: 1024,
-        hash: 'test-hash',
+        success: true,
+        operation: 'getMetadata',
+        resource: ref,
+        fileId: 'test-ref',
         url: undefined,
+        metadata: {
+          filename: 'test-file.json',
+          originalName: 'test-file.json',
+          mimeType: 'application/json',
+          size: 1024,
+          encoding: 'binary',
+          hash: 'test-hash',
+          uploadedAt: new Date(),
+        },
       };
 
       mockRawStore.getMetadata.mockResolvedValue(mockMetadata);
@@ -147,8 +159,9 @@ describe('RawService', () => {
     it('should propagate errors from underlying raw store', async () => {
       const testData = {
         deviceId: 'test-device',
-        data: [{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] as [number, number, number] }],
-        time: Date.now(),
+        timestamp: Date.now(),
+        data: JSON.stringify([{ timestamp: 1234567890, coordinates: [1.0, 2.0, 3.0] }]),
+        format: 'json' as const,
       };
 
       mockRawStore.store.mockRejectedValue(new Error('Underlying error'));

@@ -36,11 +36,10 @@ export class XRayConsumer {
     // It can be used for future error handling enhancements
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _processingContext: ProcessingContext = {
-      messageId,
-      deviceId,
-      timestamp: Date.now(),
+      id: messageId,
+      timestamp: new Date(),
       retryCount: 0,
-      startTime,
+      metadata: { deviceId, startTime },
     };
 
     try {

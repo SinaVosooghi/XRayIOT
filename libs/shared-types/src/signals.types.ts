@@ -1,14 +1,22 @@
 // Signals app specific types
 import { RawPayload, StorageResult } from './common.types';
 import { ErrorContext } from './error.types';
+import { SignalDto } from './dto/signal.dto';
+import { BoundingBox } from './geo.types';
+import { Paginated } from './generic.types';
 
-// XRay Coordinates
+// Re-export canonical types
+export { DataPoint, SignalDto } from './dto/signal.dto';
+export { Coordinate3D, BoundingBox, GeoJSONPoint } from './geo.types';
+
+// XRay Coordinates - DEPRECATED: Use Coordinate3D from geo.types instead
 export interface XRayCoordinates {
   lat: number;
   lon: number;
   speed: number;
 }
 
+// XRay Sample - DEPRECATED: Use DataPoint from signal.dto instead
 export interface XRaySample {
   timestamp: number;
   coordinates: XRayCoordinates;
@@ -19,9 +27,10 @@ export interface XRayStats {
   maxSpeed: number;
   avgSpeed: number;
   distanceMeters: number;
-  bbox?: XRayBBox;
+  bbox?: BoundingBox;
 }
 
+// XRay BBox - DEPRECATED: Use BoundingBox from geo.types instead
 export interface XRayBBox {
   minLat: number;
   maxLat: number;
@@ -29,7 +38,7 @@ export interface XRayBBox {
   maxLon: number;
 }
 
-// XRay Location (GeoJSON Point)
+// XRay Location - DEPRECATED: Use GeoJSONPoint from geo.types instead
 export interface XRayLocation {
   type: 'Point';
   coordinates: [number, number]; // [longitude, latitude]
@@ -39,7 +48,7 @@ export interface XRayLocation {
 // XRayDocument is imported from xray.schema.ts
 
 export interface RawMeta {
-  ref: string;
+  ref: string; // DEPRECATED: Use rawRef for consistency
   hash: string;
   size: number;
   metadata?: Record<string, unknown>;
@@ -148,7 +157,7 @@ export interface SignalPagination {
   cursor?: string;
 }
 
-// Response Types
+// Response Types - DEPRECATED: Use SignalDto from signal.dto instead
 export interface SignalResponse {
   _id: string;
   deviceId: string;
@@ -164,6 +173,7 @@ export interface SignalResponse {
   updatedAt: Date;
 }
 
+// Pagination Response - DEPRECATED: Use Paginated<SignalDto> from generic.types instead
 export interface PaginatedSignalResponse {
   items: SignalResponse[];
   total: number;
@@ -190,3 +200,6 @@ export interface SignalsConfig {
   enableMetrics: boolean;
   enableTracing: boolean;
 }
+
+// Type aliases for backward compatibility
+export type PaginatedSignals = Paginated<SignalDto>;

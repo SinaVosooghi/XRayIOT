@@ -10,6 +10,7 @@ module.exports = {
   maxWorkers: 1,
   forceExit: true,
   detectOpenHandles: true,
+
   // Ensure environment variables are loaded
   testEnvironmentOptions: {
     NODE_ENV: 'test',

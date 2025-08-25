@@ -11,33 +11,13 @@ export interface ErrorWithMessage {
 
 export type ErrorType = Error | ErrorWithMessage | string;
 
-// Message types for RabbitMQ
-export interface RabbitMQMessage {
-  content: Buffer;
-  fields: {
-    deliveryTag: number;
-    redelivered: boolean;
-    exchange: string;
-    routingKey: string;
-  };
-  properties: {
-    contentType?: string;
-    contentEncoding?: string;
-    headers?: Record<string, unknown>;
-    deliveryMode?: number;
-    priority?: number;
-    correlationId?: string;
-    replyTo?: string;
-    expiration?: string;
-    messageId?: string;
-    timestamp?: number;
-    type?: string;
-    userId?: string;
-    appId?: string;
-  };
+// Validation types
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
 }
 
-// X-Ray data types
+// X-Ray data types (for backward compatibility)
 export interface XRayDataPoint {
   timestamp: number;
   coordinates: [number, number, number]; // [lat, lon, altitude]
@@ -73,10 +53,91 @@ export interface LegacyXRayPayload {
 // Union type including legacy format
 export type XRayPayloadAllFormats = XRayPayload | XRaySignalsPayload | LegacyXRayPayload;
 
-export interface XRayMessage extends RabbitMQMessage {
-  content: Buffer;
-  fields: RabbitMQMessage['fields'];
-  properties: RabbitMQMessage['properties'];
+// Buffer and binary data types
+export interface BinaryData {
+  data: Buffer;
+  mimeType: string;
+  encoding: 'base64' | 'hex' | 'utf8';
+  size: number;
+}
+
+export interface FileMetadata {
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  encoding: string;
+  hash: string;
+  uploadedAt: Date;
+  uploadedBy?: string;
+}
+
+// Storage types
+export interface StorageResult {
+  success: boolean;
+  fileId?: string;
+  url?: string;
+  metadata?: FileMetadata;
+  error?: string;
+  operation: string;
+  resource: string;
+}
+
+export interface RawPayload {
+  deviceId: string;
+  timestamp: number;
+  data: Buffer | string;
+  metadata?: Record<string, unknown>;
+  format: 'binary' | 'json' | 'text';
+  compression?: 'gzip' | 'brotli' | 'none';
+  encryption?: 'aes256' | 'none';
+}
+
+export interface StorageOptions {
+  compression?: boolean;
+  encryption?: boolean;
+  retention?: number; // days
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+// Network and HTTP types
+export interface HttpRequest {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body?: unknown;
+  query?: Record<string, string>;
+  params?: Record<string, string>;
+}
+
+export interface HttpResponse {
+  statusCode: number;
+  headers: Record<string, string>;
+  body?: unknown;
+  error?: string;
+}
+
+// Time and date types
+export interface TimeRange {
+  start: Date;
+  end: Date;
+  duration: number; // milliseconds
+}
+
+export interface TimeWindow {
+  from: Date;
+  to: Date;
+  granularity: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+}
+
+// Configuration types
+export interface AppConfig {
+  environment: 'development' | 'staging' | 'production';
+  version: string;
+  debug: boolean;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+  features: Record<string, boolean>;
 }
 
 // API Response types
@@ -87,81 +148,13 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
+// DEPRECATED: Use Paginated<T> from generic.types instead
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
   page: number;
   limit: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-  cursor?: string;
 }
 
-// Raw storage types
-export interface RawPayload {
-  deviceId: string;
-  data: XRayDataPoint[];
-  time: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface StorageResult {
-  id: string;
-  size: number;
-  hash: string;
-  url?: string;
-}
-
-// Test and mock types
-export interface MockService {
-  [key: string]: unknown;
-}
-
-export interface TestContext {
-  module: unknown;
-  app?: unknown;
-}
-
-// HTTP Response types
-export interface HttpResponse<T = unknown> {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  json(): Promise<T>;
-  text(): Promise<string>;
-}
-
-// Configuration types
-export interface AppConfig {
-  [key: string]: unknown;
-}
-
-// Validation types
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-// Utility types
-export type SortOrder = 'asc' | 'desc';
-export type SortField = 'time' | 'deviceId' | 'dataLength' | 'dataVolume' | 'createdAt';
-export type TimePeriod = 'hour' | 'day' | 'week' | 'month';
-export type GroupBy = 'device' | 'time';
-
-// Redis types
-export interface RedisClient {
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, ttl?: number): Promise<void>;
-  del(key: string): Promise<number>;
-  exists(key: string): Promise<number>;
-}
-
-// MinIO types
-export interface MinioClient {
-  putObject(bucket: string, object: string, stream: Buffer): Promise<{ etag: string }>;
-  getObject(bucket: string, object: string): Promise<Buffer>;
-  removeObject(bucket: string, object: string): Promise<void>;
-  presignedGetObject(bucket: string, object: string, ttl?: number): Promise<string>;
-}
+// Re-export canonical pagination type
+export { Paginated } from './generic.types';

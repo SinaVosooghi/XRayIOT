@@ -1,18 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsArray, IsNumber, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  CreateSignalDto as BaseCreateSignalDto,
+  DataPoint as BaseDataPoint,
+} from '@iotp/shared-types';
 
-export class DataPointDto {
+// API-specific DataPoint with Swagger decorators
+export class DataPointDto implements BaseDataPoint {
   @ApiProperty({ description: 'Timestamp in milliseconds' })
   @IsNumber()
   timestamp!: number;
 
-  @ApiProperty({ description: 'Array of [latitude, longitude, speed]', type: [Number] })
-  @IsArray()
-  @IsNumber({}, { each: true })
-  coordinates!: [number, number, number];
+  @ApiProperty({ description: 'Latitude' })
+  @IsNumber()
+  lat!: number;
+
+  @ApiProperty({ description: 'Longitude' })
+  @IsNumber()
+  lon!: number;
+
+  @ApiProperty({ description: 'Speed in km/h' })
+  @IsNumber()
+  speed!: number;
 }
 
+// API-specific CreateSignalDto with Swagger decorators
 export class CreateSignalDto {
   @ApiProperty({ description: 'Device ID' })
   @IsString()
@@ -33,8 +46,13 @@ export class CreateSignalDto {
   @IsString()
   rawRef?: string;
 
-  @ApiProperty({ description: 'Idempotency key', required: false })
-  @IsOptional()
-  @IsString()
-  idempotencyKey?: string;
+  // Method to convert to base interface
+  toBaseDto(): BaseCreateSignalDto {
+    return {
+      deviceId: this.deviceId,
+      time: this.time,
+      data: this.data,
+      rawRef: this.rawRef,
+    };
+  }
 }

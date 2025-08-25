@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { BaseQuerySignalsDto } from '@iotp/shared-types';
 
-export class QuerySignalsDto {
+// API-specific QuerySignalsDto with Swagger decorators
+export class QuerySignalsDto implements BaseQuerySignalsDto {
   @ApiProperty({ description: 'Device ID filter', required: false })
   @IsOptional()
   @IsString()
