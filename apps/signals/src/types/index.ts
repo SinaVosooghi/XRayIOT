@@ -1,25 +1,17 @@
 // Signals app types index
-// Re-export shared types and app-specific types
+// Re-export all types for the Signals app
+export * from './processing.types';
+export * from './raw.types';
+export * from './validation.types';
+export * from './xray.types';
 
-// Shared types from libs (excluding app-specific types)
-export {
+// Re-export commonly used shared types for convenience
+export type {
   XRayDocument,
   SignalStats,
-  RawPayload,
-  StorageResult,
-  StorageStats,
+  RawMeta,
   RetryOptions,
   CircuitBreakerState,
   MessageValidationContext,
   PaginatedSignals,
-  ValidationResult,
-  ErrorContext,
-  ApplicationError,
-  createCircuitBreakerError,
 } from '@iotp/shared-types';
-
-// App-specific types
-export * from './xray.types';
-export * from './raw.types';
-export * from './processing.types';
-export * from './validation.types';

@@ -1,5 +1,53 @@
 // Raw storage types for the Signals app
-import { RawPayload, StorageResult, StorageStats } from '@iotp/shared-types';
+
+// App-specific storage types (moved from shared library)
+export interface StorageResult {
+  success: boolean;
+  fileId?: string;
+  url?: string;
+  metadata?: {
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    encoding: string;
+    hash: string;
+    uploadedAt: Date;
+    uploadedBy?: string;
+  };
+  error?: string;
+  operation: string;
+  resource: string;
+}
+
+export interface RawPayload {
+  deviceId: string;
+  timestamp: number;
+  data: Buffer | string;
+  metadata?: Record<string, unknown>;
+  format: 'binary' | 'json' | 'text';
+  compression?: 'gzip' | 'brotli' | 'none';
+  encryption?: 'aes256' | 'none';
+}
+
+export interface StorageStats {
+  totalFiles: number;
+  totalSize: number;
+  avgFileSize: number;
+  storageSize: number;
+  indexSize: number;
+}
+
+// Raw Store Interface (moved from shared library)
+export interface IRawStore {
+  store(payload: RawPayload): Promise<string>;
+  getPresignedUrl(ref: string, ttlSec: number): Promise<string>;
+  getMetadata(ref: string): Promise<StorageResult>;
+  delete(ref: string): Promise<boolean>;
+  exists(ref: string): Promise<boolean>;
+  getFileSize(ref: string): Promise<number>;
+  getStorageStats(): Promise<StorageStats>;
+}
 
 // Raw Storage Configuration
 export interface RawStorageConfig {

@@ -36,26 +36,8 @@ export interface FileMetadata {
   uploadedBy?: string;
 }
 
-// Storage types
-export interface StorageResult {
-  success: boolean;
-  fileId?: string;
-  url?: string;
-  metadata?: FileMetadata;
-  error?: string;
-  operation: string;
-  resource: string;
-}
-
-export interface RawPayload {
-  deviceId: string;
-  timestamp: number;
-  data: Buffer | string;
-  metadata?: Record<string, unknown>;
-  format: 'binary' | 'json' | 'text';
-  compression?: 'gzip' | 'brotli' | 'none';
-  encryption?: 'aes256' | 'none';
-}
+// Storage types - REMOVED: These are app-specific to signals app
+// StorageResult, RawPayload moved to apps/signals/src/types/raw.types.ts
 
 export interface StorageOptions {
   compression?: boolean;

@@ -1,5 +1,4 @@
 // Signals app specific types
-import { RawPayload, StorageResult } from './common.types';
 import { ErrorContext } from './error.types';
 import { SignalDto } from './dto/signal.dto';
 import { BoundingBox } from './geo.types';
@@ -27,25 +26,8 @@ export interface RawMeta {
   metadata?: Record<string, unknown>;
 }
 
-// Raw Store Interface
-export interface IRawStore {
-  store(payload: RawPayload): Promise<string>;
-  getPresignedUrl(ref: string, ttlSec: number): Promise<string>;
-  getMetadata(ref: string): Promise<StorageResult>;
-  delete(ref: string): Promise<boolean>;
-  exists(ref: string): Promise<boolean>;
-  getFileSize(ref: string): Promise<number>;
-  getStorageStats(): Promise<Record<string, unknown>>;
-}
-
-// Storage Statistics
-export interface StorageStats {
-  totalFiles: number;
-  totalSize: number;
-  avgFileSize: number;
-  storageSize: number;
-  indexSize: number;
-}
+// Raw Store Interface - REMOVED: These are app-specific to signals app
+// IRawStore, StorageStats moved to apps/signals/src/types/raw.types.ts
 
 // Error Handling Types
 // ErrorContext is imported from error.types.ts

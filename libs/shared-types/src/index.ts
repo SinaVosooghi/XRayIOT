@@ -14,8 +14,6 @@ export {
   ErrorType,
   BinaryData,
   FileMetadata,
-  StorageResult,
-  RawPayload,
   StorageOptions,
   HttpRequest,
   HttpResponse,
@@ -28,8 +26,6 @@ export {
 export {
   SignalStats,
   RawMeta,
-  IRawStore,
-  StorageStats,
   RetryOptions,
   CircuitBreakerState,
   MessageValidationContext,

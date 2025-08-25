@@ -4,7 +4,8 @@ export interface RawMeta {
   size: number;
 }
 
-import { RawPayload, StorageResult, StorageStats } from '@iotp/shared-types';
+// Raw storage interfaces for the Signals app
+import { RawPayload, StorageResult, StorageStats } from '../types';
 
 export interface IRawStore {
   store(payload: RawPayload): Promise<string>;

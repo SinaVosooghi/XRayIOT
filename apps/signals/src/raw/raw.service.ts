@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { RawPayload, StorageResult, StorageStats } from '../types';
 import { IRawStore } from './interfaces';
-import { RawPayload, StorageResult, StorageStats } from '@iotp/shared-types';
 
 @Injectable()
 export class RawService implements IRawStore {

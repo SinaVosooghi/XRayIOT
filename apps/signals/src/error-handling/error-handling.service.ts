@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CircuitBreakerState, RetryOptions, createCircuitBreakerError } from '../types';
+import { CircuitBreakerState, RetryOptions } from '../types';
+import { createCircuitBreakerError } from '@iotp/shared-types';
 
 @Injectable()
 export class ErrorHandlingService {
