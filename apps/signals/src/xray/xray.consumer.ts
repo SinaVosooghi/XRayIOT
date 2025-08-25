@@ -58,7 +58,7 @@ export class XRayConsumer {
           const normalized = normalizeXRayPayload(message);
 
           // Generate idempotency key
-          const idempotencyKey = generateIdempotencyKey(normalized);
+          const idempotencyKey = generateIdempotencyKey(message);
 
           // Check if already processed
           const existing = await this.xrayModel.findOne({ idempotencyKey });
@@ -80,8 +80,9 @@ export class XRayConsumer {
 
           // Calculate location from first data point if available
           let location;
-          if (normalized.data && normalized.data.length > 0 && normalized.data[0][1]) {
-            const [lat, lon] = normalized.data[0][1]; // Extract lat, lon from [lat, lon, speed]
+          if (normalized.data && normalized.data.length > 0) {
+            const firstPoint = normalized.data[0];
+            const [, [lat, lon]] = firstPoint; // Extract lat, lon from [timestamp, [lat, lon, speed]]
             location = { type: 'Point' as const, coordinates: [lon, lat] as [number, number] };
           }
 
@@ -118,9 +119,6 @@ export class XRayConsumer {
 
   private extractDeviceId(message: XRayPayloadAllFormats): string {
     if (typeof message === 'object' && message !== null) {
-      if ('deviceId' in message) {
-        return message.deviceId as string;
-      }
       // Legacy format: {"<deviceId>": { data, time }}
       const entries = Object.entries(message);
       if (entries.length === 1) {

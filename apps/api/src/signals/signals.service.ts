@@ -5,7 +5,8 @@ import { Response } from 'express';
 import { GridFSBucket, ObjectId } from 'mongodb';
 import * as crypto from 'crypto';
 import { SignalsValidationService } from './signals-validation.service';
-import { XRaySignalsPayload, Paginated, SignalDto, XRayDocument } from '@iotp/shared-types';
+import { Paginated, SignalDto, XRayDocument, CreateSignalDto } from '@iotp/shared-types';
+import { UpdateSignalDto } from './dto';
 import {
   SignalQuery,
   DeviceStatsQuery,
@@ -150,7 +151,7 @@ export class SignalsService {
     return signal as unknown as SignalDto;
   }
 
-  async create(createSignalDto: XRaySignalsPayload): Promise<SignalDto> {
+  async create(createSignalDto: CreateSignalDto): Promise<SignalDto> {
     // Validate input data
     this.validationService.validateSignalData(createSignalDto);
 
@@ -165,12 +166,12 @@ export class SignalsService {
         : createSignalDto.time;
 
     // Calculate location from first data point if available
-    // Data format: [timestamp, [lat, lon, speed]]
+    // Data format: { timestamp, lat, lon, speed }
     // GeoJSON format: [longitude, latitude]
     let location = undefined;
-    if (createSignalDto.data && createSignalDto.data.length > 0 && createSignalDto.data[0][1]) {
-      const [lat, lon] = createSignalDto.data[0][1]; // Extract lat, lon from [lat, lon, speed]
-      location = { type: 'Point', coordinates: [lon, lat] }; // [longitude, latitude]
+    if (createSignalDto.data && createSignalDto.data.length > 0) {
+      const firstPoint = createSignalDto.data[0];
+      location = { type: 'Point', coordinates: [firstPoint.lon, firstPoint.lat] }; // [longitude, latitude]
     }
 
     // Generate unique idempotency key
@@ -200,7 +201,7 @@ export class SignalsService {
     return result as unknown as SignalDto;
   }
 
-  async update(id: string, updateSignalDto: Partial<XRaySignalsPayload>): Promise<SignalDto> {
+  async update(id: string, updateSignalDto: Partial<UpdateSignalDto>): Promise<SignalDto> {
     const updatedSignal = await this.model.findByIdAndUpdate(
       id,
       { ...updateSignalDto, updatedAt: new Date() },

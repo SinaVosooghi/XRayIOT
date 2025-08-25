@@ -1,5 +1,5 @@
 // Validation types for the Signals app
-import { XRayPayloadAllFormats, XRayDataTuple } from '@iotp/shared-types';
+import { XRayPayloadAllFormats, DataPoint } from '@iotp/shared-types';
 
 // Base Validation Types
 export interface ValidationRule<T = unknown> {
@@ -123,8 +123,8 @@ export interface FieldValidator {
 }
 
 // Coordinate Validation Types
-export interface CoordinateValidationRule extends ValidationRule<XRayDataTuple[]> {
-  validateCoordinates(data: XRayDataTuple[]): ValidationRuleResult;
+export interface CoordinateValidationRule extends ValidationRule<DataPoint[]> {
+  validateCoordinates(data: DataPoint[]): ValidationRuleResult;
   validateLatitude(lat: number): boolean;
   validateLongitude(lon: number): boolean;
   validateSpeed(speed: number): boolean;
@@ -132,12 +132,12 @@ export interface CoordinateValidationRule extends ValidationRule<XRayDataTuple[]
 }
 
 export interface CoordinateValidator {
-  validateCoordinates(data: XRayDataTuple[]): ValidationResult<XRayDataTuple[]>;
+  validateCoordinates(data: DataPoint[]): ValidationResult<DataPoint[]>;
   validateLatitude(lat: number): boolean;
   validateLongitude(lon: number): boolean;
   validateSpeed(speed: number): boolean;
   validateTimestamp(timestamp: number): boolean;
-  getCoordinateErrors(data: XRayDataTuple[]): string[];
+  getCoordinateErrors(data: DataPoint[]): string[];
 }
 
 // Device Validation Types
@@ -170,30 +170,30 @@ export interface DeviceQuota {
 export interface TimeValidationRule extends ValidationRule<XRayPayloadAllFormats> {
   validateTimestamp(timestamp: number): ValidationRuleResult;
   validateTimeRange(from: number, to: number): ValidationRuleResult;
-  validateTimeOrder(data: XRayDataTuple[]): ValidationRuleResult;
-  validateTimeConsistency(data: XRayDataTuple[]): ValidationRuleResult;
+  validateTimeOrder(data: DataPoint[]): ValidationRuleResult;
+  validateTimeConsistency(data: DataPoint[]): ValidationRuleResult;
 }
 
 export interface TimeValidator {
   validateTime(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
   validateTimestamp(timestamp: number): ValidationResult<number>;
   validateTimeRange(from: number, to: number): ValidationResult<{ from: number; to: number }>;
-  validateTimeOrder(data: XRayDataTuple[]): ValidationResult<XRayDataTuple[]>;
-  validateTimeConsistency(data: XRayDataTuple[]): ValidationResult<XRayDataTuple[]>;
+  validateTimeOrder(data: DataPoint[]): ValidationResult<DataPoint[]>;
+  validateTimeConsistency(data: DataPoint[]): ValidationResult<DataPoint[]>;
   isTimestampValid(timestamp: number): boolean;
   isTimeRangeValid(from: number, to: number): boolean;
 }
 
 // Size Validation Types
 export interface SizeValidationRule extends ValidationRule<XRayPayloadAllFormats> {
-  validateDataLength(data: XRayDataTuple[]): ValidationRuleResult;
+  validateDataLength(data: DataPoint[]): ValidationRuleResult;
   validateDataVolume(message: XRayPayloadAllFormats): ValidationRuleResult;
   validateMessageSize(message: XRayPayloadAllFormats): ValidationRuleResult;
 }
 
 export interface SizeValidator {
   validateSize(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateDataLength(data: XRayDataTuple[]): ValidationResult<XRayDataTuple[]>;
+  validateDataLength(data: DataPoint[]): ValidationResult<DataPoint[]>;
   validateDataVolume(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
   validateMessageSize(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
   getSizeLimits(): SizeLimits;

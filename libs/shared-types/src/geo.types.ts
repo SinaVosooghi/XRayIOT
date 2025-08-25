@@ -192,5 +192,3 @@ export const calculateGeoStats = (coordinates: Coordinate3D[]): GeoStats => {
     minSpeed: Math.min(...speeds),
   };
 };
-
-

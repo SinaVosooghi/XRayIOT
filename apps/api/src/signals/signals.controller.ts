@@ -12,13 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SignalsService } from './signals.service';
 import { CreateSignalDto, UpdateSignalDto } from './dto/index';
-import {
-  BaseQuerySignalsDto,
-  SignalDto,
-  XRaySignalsPayload,
-  Paginated,
-  DataPoint,
-} from '@iotp/shared-types';
+import { BaseQuerySignalsDto, SignalDto, Paginated } from '@iotp/shared-types';
 
 @ApiTags('signals')
 @Controller('signals')
@@ -35,16 +29,8 @@ export class SignalsController {
       throw new Error('Validation failed: data must be an array');
     }
 
-    // Convert the new DTO format to the service-expected format
-    const servicePayload: XRaySignalsPayload = {
-      deviceId: body.deviceId,
-      time: body.time,
-      data: body.data.map((point: DataPoint) => [
-        point.timestamp,
-        [point.lat, point.lon, point.speed],
-      ]),
-    };
-    return this.svc.create(servicePayload);
+    // Pass the DTO directly to the service
+    return this.svc.create(body);
   }
 
   @Put(':id')
@@ -52,16 +38,8 @@ export class SignalsController {
   @ApiResponse({ status: 200, description: 'Signal updated successfully' })
   @ApiResponse({ status: 404, description: 'Signal not found' })
   async update(@Param('id') id: string, @Body() body: UpdateSignalDto): Promise<SignalDto> {
-    // Convert the new DTO format to the service-expected format
-    const servicePayload: Partial<XRaySignalsPayload> = {
-      deviceId: body.deviceId,
-      time: body.time,
-      data: body.data?.map((point: DataPoint) => [
-        point.timestamp,
-        [point.lat, point.lon, point.speed],
-      ]),
-    };
-    return this.svc.update(id, servicePayload);
+    // Pass the DTO directly to the service
+    return this.svc.update(id, body);
   }
 
   @Get()

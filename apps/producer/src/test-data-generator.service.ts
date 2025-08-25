@@ -1,118 +1,118 @@
 import { Injectable } from '@nestjs/common';
-import { XRayDataTuple } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
 import { TestFormat } from './producer.types';
 
 @Injectable()
 export class TestDataGeneratorService {
   // Original format from task description
-  generateOriginalFormat(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateOriginalFormat(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       '66bb584d4ae73e488c30a072': {
         data: [
-          [762, [51.339764, 12.339223833333334, 1.2038000000000002]],
-          [1766, [51.33977733333333, 12.339211833333334, 1.531604]],
-          [2763, [51.339782, 12.339196166666667, 2.13906]],
-        ] as XRayDataTuple[],
+          { timestamp: 762, lat: 51.339764, lon: 12.339223833333334, speed: 1.2038000000000002 },
+          { timestamp: 1766, lat: 51.33977733333333, lon: 12.339211833333334, speed: 1.531604 },
+          { timestamp: 2763, lat: 51.339782, lon: 12.339196166666667, speed: 2.13906 },
+        ],
         time: 1735683480000,
       },
     };
   }
 
   // Different device ID format
-  generateDifferentDeviceFormat(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateDifferentDeviceFormat(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'iot-device-xyz-123': {
         data: [
-          [100, [40.7128, -74.006, 0.5]], // NYC coordinates
-          [200, [40.713, -74.0058, 0.8]],
-          [300, [40.7132, -74.0056, 1.2]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 40.7128, lon: -74.006, speed: 0.5 }, // NYC coordinates
+          { timestamp: 200, lat: 40.713, lon: -74.0058, speed: 0.8 },
+          { timestamp: 300, lat: 40.7132, lon: -74.0056, speed: 1.2 },
+        ],
         time: Date.now(),
       },
     };
   }
 
   // Multiple data points
-  generateMultipleDataPoints(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateMultipleDataPoints(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'sensor-array-001': {
         data: [
-          [100, [37.7749, -122.4194, 0.0]], // San Francisco
-          [200, [37.7751, -122.4192, 0.3]],
-          [300, [37.7753, -122.419, 0.6]],
-          [400, [37.7755, -122.4188, 0.9]],
-          [500, [37.7757, -122.4186, 1.2]],
-          [600, [37.7759, -122.4184, 1.5]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 37.7749, lon: -122.4194, speed: 0.0 }, // San Francisco
+          { timestamp: 200, lat: 37.7751, lon: -122.4192, speed: 0.3 },
+          { timestamp: 300, lat: 37.7753, lon: -122.419, speed: 0.6 },
+          { timestamp: 400, lat: 37.7755, lon: -122.4188, speed: 0.9 },
+          { timestamp: 500, lat: 37.7757, lon: -122.4186, speed: 1.2 },
+          { timestamp: 600, lat: 37.7759, lon: -122.4184, speed: 1.5 },
+        ],
         time: Date.now(),
       },
     };
   }
 
   // Single data point
-  generateSingleDataPoint(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateSingleDataPoint(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'single-sensor': {
         data: [
-          [100, [51.5074, -0.1278, 0.0]], // London
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 51.5074, lon: -0.1278, speed: 0.0 }, // London
+        ],
         time: Date.now(),
       },
     };
   }
 
   // High precision coordinates
-  generateHighPrecisionData(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateHighPrecisionData(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'precision-sensor': {
         data: [
-          [100, [51.50735123456789, -0.1277587654321, 1.234567890123456]],
-          [200, [51.5073523456789, -0.12775765432109, 2.345678901234567]],
-          [300, [51.50735345678901, -0.12775654321098, 3.456789012345678]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 51.50735123456789, lon: -0.1277587654321, speed: 1.234567890123456 },
+          { timestamp: 200, lat: 51.5073523456789, lon: -0.12775765432109, speed: 2.345678901234567 },
+          { timestamp: 300, lat: 51.50735345678901, lon: -0.12775654321098, speed: 3.456789012345678 },
+        ],
         time: Date.now(),
       },
     };
   }
 
   // Edge case: very small values
-  generateEdgeCaseSmallValues(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateEdgeCaseSmallValues(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'edge-sensor': {
         data: [
-          [100, [0.000001, 0.000001, 0.000001]],
-          [200, [-0.000001, -0.000001, 0.000001]],
-          [300, [0.000001, -0.000001, 0.000001]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 0.000001, lon: 0.000001, speed: 0.000001 },
+          { timestamp: 200, lat: -0.000001, lon: -0.000001, speed: 0.000001 },
+          { timestamp: 300, lat: 0.000001, lon: -0.000001, speed: 0.000001 },
+        ],
         time: Date.now(),
       },
     };
   }
 
   // Edge case: very large values
-  generateEdgeCaseLargeValues(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateEdgeCaseLargeValues(): Record<string, { data: DataPoint[]; time: number }> {
     return {
       'large-sensor': {
         data: [
-          [100, [89.999999, 179.999999, 999.999999]],
-          [200, [-89.999999, -179.999999, 999.999999]],
-          [300, [89.999999, -179.999999, 999.999999]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 89.999999, lon: 179.999999, speed: 999.999999 },
+          { timestamp: 200, lat: -89.999999, lon: -179.999999, speed: 999.999999 },
+          { timestamp: 300, lat: 89.999999, lon: -179.999999, speed: 999.999999 },
+        ],
         time: Date.now(),
       },
     };
   }
 
   // Different timestamp formats
-  generateDifferentTimestampFormats(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateDifferentTimestampFormats(): Record<string, { data: DataPoint[]; time: number }> {
     const now = Date.now();
     return {
       'timestamp-test': {
         data: [
-          [100, [51.5074, -0.1278, 1.0]],
-          [200, [51.5075, -0.1279, 2.0]],
-          [300, [51.5076, -0.128, 3.0]],
-        ] as XRayDataTuple[],
+          { timestamp: 100, lat: 51.5074, lon: -0.1278, speed: 1.0 },
+          { timestamp: 200, lat: 51.5075, lon: -0.1279, speed: 2.0 },
+          { timestamp: 300, lat: 51.5076, lon: -0.128, speed: 3.0 },
+        ],
         time: now, // Current timestamp
       },
     };
@@ -133,10 +133,10 @@ export class TestDataGeneratorService {
   }
 
   // Generate random test data
-  generateRandomTestData(): Record<string, { data: XRayDataTuple[]; time: number }> {
+  generateRandomTestData(): Record<string, { data: DataPoint[]; time: number }> {
     const deviceId = `random-device-${Math.random().toString(36).substr(2, 9)}`;
     const dataPoints = Math.floor(Math.random() * 10) + 1; // 1-10 data points
-    const data: XRayDataTuple[] = [];
+    const data: DataPoint[] = [];
 
     for (let i = 0; i < dataPoints; i++) {
       const lat = (Math.random() - 0.5) * 180; // -90 to 90
@@ -144,7 +144,7 @@ export class TestDataGeneratorService {
       const speed = Math.random() * 100; // 0 to 100
       const timestamp = Math.floor(Math.random() * 10000); // 0 to 10000
 
-      data.push([timestamp, [lat, lon, speed]]);
+      data.push({ timestamp, lat, lon, speed });
     }
 
     return {

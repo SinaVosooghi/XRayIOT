@@ -1,5 +1,5 @@
 // Producer app specific types
-import { XRayDataTuple, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { DataPoint, XRayPayloadAllFormats } from '@iotp/shared-types';
 
 // Message publishing types
 export interface PublishOptions {
@@ -185,7 +185,7 @@ export interface TestFormat {
   data: Record<
     string,
     {
-      data: XRayDataTuple[];
+      data: DataPoint[];
       time: number;
     }
   >;

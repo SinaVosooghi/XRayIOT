@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { byteLengthUtf8, haversineMeters } from '@iotp/shared-utils';
 import { IRawStore } from '../raw/interfaces';
-import { XRayDocument, XRayDataTuple, XRayPayloadAllFormats, RawPayload } from '../types';
+import { XRayDocument, XRayPayloadAllFormats, RawPayload } from '../types';
 
 @Injectable()
 export class XRayService {
@@ -15,15 +15,9 @@ export class XRayService {
   ) {}
 
   async saveFromNormalizedPayload(norm: XRayPayloadAllFormats): Promise<XRayDocument> {
-    const {
-      deviceId,
-      data: samples,
-      time,
-    } = norm as {
-      deviceId: string;
-      data: XRayDataTuple[];
-      time: number;
-    };
+    // Extract deviceId from legacy format
+    const deviceId = Object.keys(norm)[0];
+    const { data: samples, time } = norm[deviceId];
     const ts = new Date(time ?? Date.now());
 
     const dataLength = samples.length;
@@ -38,7 +32,7 @@ export class XRayService {
       maxLon = -Infinity;
 
     for (let i = 0; i < samples.length; i++) {
-      const [, [lat, lon, speed]] = samples[i];
+      const { lat, lon, speed } = samples[i];
       maxSpeed = Math.max(maxSpeed, speed || 0);
       sumSpeed += speed || 0;
       minLat = Math.min(minLat, lat);
@@ -47,7 +41,7 @@ export class XRayService {
       maxLon = Math.max(maxLon, lon);
 
       if (i > 0) {
-        const [, [latPrev, lonPrev]] = samples[i - 1];
+        const { lat: latPrev, lon: lonPrev } = samples[i - 1];
         distance += haversineMeters(latPrev, lonPrev, lat, lon);
       }
     }
@@ -55,9 +49,9 @@ export class XRayService {
     const avgSpeed = dataLength ? sumSpeed / dataLength : 0;
 
     // Representative Point: first coordinate as GeoJSON
-    const first = samples[0]?.[1];
+    const first = samples[0];
     const location = first
-      ? { type: 'Point' as const, coordinates: [first[1], first[0]] as [number, number] }
+      ? { type: 'Point' as const, coordinates: [first.lon, first.lat] as [number, number] }
       : undefined;
 
     // Calculate bounding box

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { XRayConsumer } from './xray.consumer';
 import { getModelToken } from '@nestjs/mongoose';
 import { ErrorHandlingService } from '../error-handling/error-handling.service';
-import { XRayDataTuple, LegacyXRayPayload } from '@iotp/shared-types';
+import { LegacyXRayPayload } from '@iotp/shared-types';
 import {
   validateMessage,
   generateIdempotencyKey,
@@ -99,7 +99,7 @@ describe('XRayConsumer', () => {
       // Arrange
       const message: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -131,7 +131,7 @@ describe('XRayConsumer', () => {
       // Arrange
       const message: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -163,7 +163,7 @@ describe('XRayConsumer', () => {
       // Arrange
       const message: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -180,7 +180,7 @@ describe('XRayConsumer', () => {
       // Arrange
       const message: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339764, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339764, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -210,7 +210,7 @@ describe('XRayConsumer', () => {
       // Arrange
       const message: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -221,6 +221,13 @@ describe('XRayConsumer', () => {
           return await operation();
         }
       );
+
+      // Override the normalizeXRayPayload mock for this test
+      (normalizeXRayPayload as jest.Mock).mockReturnValue({
+        deviceId: 'test-device-001',
+        data: [[1000, [51.339764, 12.339223, 1.2038]]], // Tuple format
+        time: Date.now(),
+      });
 
       // Mock dependencies
       MockXRayModel.findOne.mockResolvedValue(null);

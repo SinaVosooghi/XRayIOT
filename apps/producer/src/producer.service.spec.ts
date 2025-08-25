@@ -3,7 +3,7 @@ import { ProducerService } from './producer.service';
 import { TestDataGeneratorService } from './test-data-generator.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@nestjs/config';
-import { XRayDataTuple, LegacyXRayPayload, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { LegacyXRayPayload, XRayPayloadAllFormats } from '@iotp/shared-types';
 
 describe('ProducerService', () => {
   let service: ProducerService;
@@ -70,7 +70,7 @@ describe('ProducerService', () => {
       // Arrange
       const testData: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -89,7 +89,7 @@ describe('ProducerService', () => {
       // Arrange
       const testData: LegacyXRayPayload = {
         'test-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -190,7 +190,7 @@ describe('ProducerService', () => {
       // Arrange
       const mockRandomData: LegacyXRayPayload = {
         'random-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -215,7 +215,7 @@ describe('ProducerService', () => {
       // Arrange
       const mockRandomData: LegacyXRayPayload = {
         'random-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -237,11 +237,28 @@ describe('ProducerService', () => {
         { name: 'Empty Data Array', data: { 'edge-device-1': { data: [], time: Date.now() } } },
         {
           name: 'Null Coordinates',
-          data: { 'edge-device-2': { data: [[1000, [null, null, null]]], time: Date.now() } },
+          data: {
+            'edge-device-2': {
+              data: [
+                {
+                  timestamp: 1000,
+                  lat: null as unknown as number,
+                  lon: null as unknown as number,
+                  speed: null as unknown as number,
+                },
+              ],
+              time: Date.now(),
+            },
+          },
         },
         {
           name: 'Large Values',
-          data: { 'edge-device-3': { data: [[1000, [999999, 999999, 999999]]], time: Date.now() } },
+          data: {
+            'edge-device-3': {
+              data: [{ timestamp: 1000, lat: 999999, lon: 999999, speed: 999999 }],
+              time: Date.now(),
+            },
+          },
         },
       ];
 
@@ -266,7 +283,7 @@ describe('ProducerService', () => {
       // Arrange
       const validData = {
         'valid-device-001': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -284,7 +301,7 @@ describe('ProducerService', () => {
       // Arrange
       const validData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -323,7 +340,7 @@ describe('ProducerService', () => {
       // Arrange
       const testData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -343,7 +360,7 @@ describe('ProducerService', () => {
 
       const testData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -361,7 +378,7 @@ describe('ProducerService', () => {
       // Arrange
       const testData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -378,7 +395,7 @@ describe('ProducerService', () => {
       // Arrange
       const testData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };
@@ -397,7 +414,7 @@ describe('ProducerService', () => {
         .fill(null)
         .map((_, index) => ({
           [`device-${index}`]: {
-            data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+            data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
             time: Date.now(),
           },
         }));
@@ -418,7 +435,7 @@ describe('ProducerService', () => {
       const startTime = Date.now();
       const testData: LegacyXRayPayload = {
         'test-device': {
-          data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
         },
       };

@@ -12,12 +12,11 @@ export * from './validation.types';
 
 // Re-export commonly used types for convenience
 export type {
-  XRayPayloadAllFormats,
   XRayDataTuple,
+  XRayPayloadAllFormats,
   XRayDocument,
   XRayStats,
-  XRayBBox,
-  XRayLocation,
+
   RawPayload,
   StorageResult,
   ValidationResult,

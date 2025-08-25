@@ -1,4 +1,4 @@
-import { XRayPayloadAllFormats } from '@iotp/shared-types';
+import { XRayPayloadAllFormats, XRayDataTuple } from '@iotp/shared-types';
 
 export * from './schemas/xray.schema';
 export * from './validators/ajv';
@@ -6,20 +6,38 @@ export * from './rmq/topology';
 
 export function normalizeXRayPayload(input: XRayPayloadAllFormats): {
   deviceId: string;
-  data: Array<[number, [number, number, number]]>;
+  data: XRayDataTuple[];
   time: number;
 } {
   // If already normalized
   if (input && typeof input === 'object' && 'deviceId' in input && 'data' in input) {
     return input as unknown as {
       deviceId: string;
-      data: Array<[number, [number, number, number]]>;
+      data: XRayDataTuple[];
       time: number;
     };
   }
 
   const [deviceId, content] = Object.entries(input)[0];
-  return { deviceId, data: content.data, time: content.time };
+  
+  // Convert DataPoint[] to XRayDataTuple[] if needed
+  let data: XRayDataTuple[];
+  if (Array.isArray(content.data)) {
+    // Check if it's already in tuple format
+    if (content.data.length > 0 && Array.isArray(content.data[0]) && content.data[0].length === 2) {
+      data = content.data as unknown as XRayDataTuple[];
+    } else {
+      // Convert from DataPoint[] to XRayDataTuple[]
+      data = (content.data as any[]).map(point => [
+        point.timestamp,
+        [point.lat, point.lon, point.speed]
+      ]);
+    }
+  } else {
+    data = [];
+  }
+  
+  return { deviceId, data, time: content.time };
 }
 
 export function validateMessage(message: unknown): { valid: boolean; errors: string[] } {

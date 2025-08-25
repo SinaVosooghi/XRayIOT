@@ -9,17 +9,13 @@ import { Paginated } from './generic.types';
 export { DataPoint, SignalDto } from './dto/signal.dto';
 export { Coordinate3D, BoundingBox, GeoJSONPoint } from './geo.types';
 
-// XRay Coordinates - DEPRECATED: Use Coordinate3D from geo.types instead
-export interface XRayCoordinates {
-  lat: number;
-  lon: number;
-  speed: number;
-}
+// Import the standardized types for use in this file
+import { Coordinate3D, GeoJSONPoint } from './geo.types';
 
 // XRay Sample - DEPRECATED: Use DataPoint from signal.dto instead
 export interface XRaySample {
   timestamp: number;
-  coordinates: XRayCoordinates;
+  coordinates: Coordinate3D; // Use standardized Coordinate3D
 }
 
 // XRay Statistics
@@ -30,19 +26,9 @@ export interface XRayStats {
   bbox?: BoundingBox;
 }
 
-// XRay BBox - DEPRECATED: Use BoundingBox from geo.types instead
-export interface XRayBBox {
-  minLat: number;
-  maxLat: number;
-  minLon: number;
-  maxLon: number;
-}
 
-// XRay Location - DEPRECATED: Use GeoJSONPoint from geo.types instead
-export interface XRayLocation {
-  type: 'Point';
-  coordinates: [number, number]; // [longitude, latitude]
-}
+
+
 
 // XRay Document Schema
 // XRayDocument is imported from xray.schema.ts
@@ -168,7 +154,7 @@ export interface SignalResponse {
   rawRef?: string;
   rawHash?: string;
   rawSizeBytes?: number;
-  location?: XRayLocation;
+  location?: GeoJSONPoint;
   createdAt: Date;
   updatedAt: Date;
 }

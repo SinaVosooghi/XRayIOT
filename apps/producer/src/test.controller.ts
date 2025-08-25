@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Delete, Body, Query } from '@nestjs/common';
 import { ProducerService } from './producer.service';
 import { TestDataGeneratorService } from './test-data-generator.service';
-import { XRayDataTuple, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { DataPoint, XRayPayloadAllFormats } from '@iotp/shared-types';
 import { HealthCheckResult, ProducerMetrics, TestFormat } from './producer.types';
 
 @Controller('test')
@@ -120,7 +120,7 @@ export class TestController {
   @Get('random-data')
   getRandomData(): {
     success: boolean;
-    data: Record<string, { data: XRayDataTuple[]; time: number }> | null;
+    data: Record<string, { data: DataPoint[]; time: number }> | null;
     message: string;
   } {
     try {

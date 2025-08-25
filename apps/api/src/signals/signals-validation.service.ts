@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { XRaySignalsPayload } from '@iotp/shared-types';
+import { DataPoint, CreateSignalDto } from '@iotp/shared-types';
 import { SignalQuery } from './types';
 
 @Injectable()
@@ -41,7 +41,7 @@ export class SignalsValidationService {
   /**
    * Validates data format
    */
-  validateDataFormat(data: Array<[number, [number, number, number]]>): boolean {
+  validateDataFormat(data: DataPoint[]): boolean {
     if (!Array.isArray(data) || data.length === 0) {
       throw new BadRequestException('Data must be a non-empty array.');
     }
@@ -49,27 +49,18 @@ export class SignalsValidationService {
     for (let i = 0; i < data.length; i++) {
       const item = data[i];
 
-      if (!Array.isArray(item) || item.length !== 2) {
+      if (!item || typeof item !== 'object') {
         throw new BadRequestException(
-          `Data item ${i} must be an array with 2 elements: [timestamp, [lat, lon, speed]]`
+          `Data item ${i} must be an object with properties: timestamp, lat, lon, speed`
         );
       }
 
-      const [timestamp, coordinates] = item;
+      const { timestamp, lat, lon, speed } = item;
 
       // Validate timestamp
       if (typeof timestamp !== 'number' || timestamp < 0) {
         throw new BadRequestException(`Invalid timestamp at index ${i}: ${timestamp}`);
       }
-
-      // Validate coordinates
-      if (!Array.isArray(coordinates) || coordinates.length !== 3) {
-        throw new BadRequestException(
-          `Invalid coordinates at index ${i}. Expected [lat, lon, speed], got: ${String(coordinates)}`
-        );
-      }
-
-      const [lat, lon, speed] = coordinates;
 
       // Validate coordinate types
       if (typeof lat !== 'number' || typeof lon !== 'number' || typeof speed !== 'number') {
@@ -119,7 +110,7 @@ export class SignalsValidationService {
   /**
    * Comprehensive validation of signal data
    */
-  validateSignalData(createSignalDto: XRaySignalsPayload): boolean {
+  validateSignalData(createSignalDto: CreateSignalDto): boolean {
     try {
       // Validate device ID
       this.validateDeviceId(createSignalDto.deviceId);

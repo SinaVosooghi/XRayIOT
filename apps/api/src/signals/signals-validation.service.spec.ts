@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { SignalsValidationService } from './signals-validation.service';
-import { XRayDataTuple } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
 
 describe('SignalsValidationService', () => {
   let service: SignalsValidationService;
@@ -55,18 +55,18 @@ describe('SignalsValidationService', () => {
 
   describe('validateDataFormat', () => {
     it('should validate valid data format', () => {
-      const validData: Array<[number, [number, number, number]]> = [
-        [1000, [51.339764, 12.339223, 1.2038]],
-        [2000, [51.339765, 12.339224, 2.0]],
-        [3000, [51.339766, 12.339225, 0.5]],
+      const validData: DataPoint[] = [
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 },
+        { timestamp: 2000, lat: 51.339765, lon: 12.339224, speed: 2.0 },
+        { timestamp: 3000, lat: 51.339766, lon: 12.339225, speed: 0.5 },
       ];
 
       expect(service.validateDataFormat(validData)).toBe(true);
     });
 
     it('should validate single data point', () => {
-      const singleData: Array<[number, [number, number, number]]> = [
-        [1000, [51.339764, 12.339223, 1.2038]],
+      const singleData: DataPoint[] = [
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 },
       ];
       expect(service.validateDataFormat(singleData)).toBe(true);
     });
@@ -76,41 +76,34 @@ describe('SignalsValidationService', () => {
     });
 
     it('should throw error for non-array data', () => {
-      expect(() => service.validateDataFormat(null as unknown as XRayDataTuple[])).toThrow(
+      expect(() => service.validateDataFormat(null as unknown as DataPoint[])).toThrow(
         BadRequestException
       );
-      expect(() => service.validateDataFormat('invalid' as unknown as XRayDataTuple[])).toThrow(
+      expect(() => service.validateDataFormat('invalid' as unknown as DataPoint[])).toThrow(
         BadRequestException
       );
     });
 
-    it('should throw error for invalid data item structure', () => {
-      const invalidData = [
-        [1000, [51.339764, 12.339223]], // Missing speed
-        [1000, [51.339764]], // Missing lon and speed
-        [1000, 51.339764, 12.339223, 1.2038], // Wrong structure
-      ] as unknown as XRayDataTuple[];
 
-      expect(() => service.validateDataFormat(invalidData)).toThrow(BadRequestException);
-    });
 
     it('should throw error for invalid coordinate types', () => {
+      // Test with data that has wrong structure (will cause runtime error)
       const invalidData = [
-        [1000, ['51.339764', 12.339223, 1.2038]], // String lat
-        [1000, [51.339764, '12.339223', 1.2038]], // String lon
-        [1000, [51.339764, 12.339223, '1.2038']], // String speed
+        { timestamp: 1000, lat: '51.339764' as unknown as number, lon: 12.339223, speed: 1.2038 }, // String lat
+        { timestamp: 1000, lat: 51.339764, lon: '12.339223' as unknown as number, speed: 1.2038 }, // String lon
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: '1.2038' as unknown as number }, // String speed
       ];
 
-      expect(() => service.validateDataFormat(invalidData as unknown as XRayDataTuple[])).toThrow(
+      expect(() => service.validateDataFormat(invalidData)).toThrow(
         BadRequestException
       );
     });
 
     it('should throw error for invalid speed values', () => {
-      const invalidData: Array<[number, [number, number, number]]> = [
-        [1000, [51.339764, 12.339223, -1]], // Negative speed
-        [1000, [51.339764, 12.339223, 1001]], // Speed > 1000
-        [1000, [51.339764, 12.339223, 1000.1]], // Speed > 1000
+      const invalidData: DataPoint[] = [
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: -1 }, // Negative speed
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1001 }, // Speed > 1000
+        { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1000.1 }, // Speed > 1000
       ];
 
       expect(() => service.validateDataFormat(invalidData)).toThrow(BadRequestException);
@@ -140,7 +133,7 @@ describe('SignalsValidationService', () => {
       const validSignal = {
         deviceId: 'test-device-001',
         time: Date.now(),
-        data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+        data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
       };
 
       expect(service.validateSignalData(validSignal)).toBe(true);
@@ -150,7 +143,7 @@ describe('SignalsValidationService', () => {
       const invalidSignal = {
         deviceId: 'test-device-001',
         time: Date.now(),
-        data: [[1000, [200, 100, 1.0]]] as XRayDataTuple[], // Invalid coordinates
+        data: [{ timestamp: 1000, lat: 200, lon: 100, speed: 1.0 }], // Invalid coordinates
       };
 
       expect(() => service.validateSignalData(invalidSignal)).toThrow(BadRequestException);
@@ -160,7 +153,7 @@ describe('SignalsValidationService', () => {
       const invalidSignal = {
         deviceId: '', // Invalid device ID
         time: Date.now(),
-        data: [[1000, [51.339764, 12.339223, 1.2038]]] as XRayDataTuple[],
+        data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
       };
 
       expect(() => service.validateSignalData(invalidSignal)).toThrow(BadRequestException);

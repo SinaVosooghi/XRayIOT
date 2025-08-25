@@ -20,13 +20,12 @@ export * from './messaging.types';
 export {
   ErrorWithMessage,
   ErrorType,
-  XRayDataPoint,
   XRayDataTuple,
-  XRayPayload,
-  XRaySignalsPayload,
   XRayPayloadUnion,
   LegacyXRayPayload,
   XRayPayloadAllFormats,
+  CanonicalDataPoint,
+  CanonicalCreateSignalDto,
   BinaryData,
   FileMetadata,
   StorageResult,
@@ -42,11 +41,8 @@ export {
 
 // Export signals types with conflict resolution
 export {
-  XRayCoordinates,
   XRaySample,
   XRayStats,
-  XRayBBox,
-  XRayLocation,
   RawMeta,
   IRawStore,
   StorageStats,

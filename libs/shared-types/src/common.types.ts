@@ -1,5 +1,6 @@
 // Common types to replace 'any' usage throughout the codebase
 import { Buffer } from 'buffer';
+import { DataPoint, CreateSignalDto } from './dto/signal.dto';
 
 // Error types
 export interface ErrorWithMessage {
@@ -17,41 +18,30 @@ export interface ValidationResult {
   errors: string[];
 }
 
-// X-Ray data types (for backward compatibility)
-export interface XRayDataPoint {
-  timestamp: number;
-  coordinates: [number, number, number]; // [lat, lon, altitude]
-}
+// Alternative format for signals service compatibility (DEPRECATED - use DataPoint[] instead)
+export type XRayDataTuple = [number, [number, number, number]]; // [timestamp, [lat, lon, speed]] - Keep old format for services
 
-// Alternative format for signals service compatibility
-export type XRayDataTuple = [number, [number, number, number]]; // [timestamp, [lat, lon, speed]]
 
-export interface XRayPayload {
-  deviceId: string;
-  data: XRayDataPoint[];
-  time: number;
-}
 
-// Signals service compatible payload
-export interface XRaySignalsPayload {
-  deviceId: string;
-  data: XRayDataTuple[];
-  time: number;
-}
+
 
 // Union type for both formats
-export type XRayPayloadUnion = XRayPayload | XRaySignalsPayload;
+export type XRayPayloadUnion = never; // No more payload types, use CreateSignalDto instead
 
 // Legacy format for backward compatibility (used in tests and some services)
 export interface LegacyXRayPayload {
   [deviceId: string]: {
-    data: XRayDataTuple[];
+    data: DataPoint[];
     time: number;
   };
 }
 
 // Union type including legacy format
-export type XRayPayloadAllFormats = XRayPayload | XRaySignalsPayload | LegacyXRayPayload;
+export type XRayPayloadAllFormats = LegacyXRayPayload; // Only legacy format remains
+
+// Canonical alternatives to legacy types
+export type CanonicalDataPoint = DataPoint;
+export type CanonicalCreateSignalDto = CreateSignalDto;
 
 // Buffer and binary data types
 export interface BinaryData {

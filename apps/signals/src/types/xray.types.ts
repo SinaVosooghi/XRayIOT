@@ -1,5 +1,5 @@
 // XRay-specific types for the Signals app
-import { XRayDocument, XRayBBox, XRayLocation, XRayDataTuple } from '@iotp/shared-types';
+import { XRayDocument, BoundingBox, GeoJSONPoint, DataPoint } from '@iotp/shared-types';
 
 // XRay Processing Types
 export interface XRayProcessingContext {
@@ -31,23 +31,23 @@ export interface XRayProcessingOptions {
 
 // XRay Statistics Calculation Types
 export interface XRayStatsCalculator {
-  calculateSpeedStats(data: XRayDataTuple[]): {
+  calculateSpeedStats(data: DataPoint[]): {
     maxSpeed: number;
     avgSpeed: number;
     minSpeed: number;
     speedVariance: number;
   };
 
-  calculateDistanceStats(data: XRayDataTuple[]): {
+  calculateDistanceStats(data: DataPoint[]): {
     totalDistance: number;
     averageSegmentDistance: number;
     maxSegmentDistance: number;
     distanceVariance: number;
   };
 
-  calculateBBoxStats(data: XRayDataTuple[]): XRayBBox | null;
+  calculateBBoxStats(data: DataPoint[]): BoundingBox | null;
 
-  calculateTimeStats(data: XRayDataTuple[]): {
+  calculateTimeStats(data: DataPoint[]): {
     duration: number;
     averageInterval: number;
     maxInterval: number;
@@ -65,12 +65,12 @@ export interface XRayDataQuality {
 }
 
 export interface XRayDataQualityCheck {
-  checkCompleteness(data: XRayDataTuple[], expectedCount: number): number;
-  checkAccuracy(data: XRayDataTuple[]): number;
-  checkConsistency(data: XRayDataTuple[]): number;
-  checkTimeliness(data: XRayDataTuple[], maxAge: number): number;
+  checkCompleteness(data: DataPoint[], expectedCount: number): number;
+  checkAccuracy(data: DataPoint[]): number;
+  checkConsistency(data: DataPoint[]): number;
+  checkTimeliness(data: DataPoint[], maxAge: number): number;
   calculateOverallQuality(
-    data: XRayDataTuple[],
+    data: DataPoint[],
     expectedCount: number,
     maxAge: number
   ): XRayDataQuality;
@@ -78,27 +78,27 @@ export interface XRayDataQualityCheck {
 
 // XRay Location Processing Types
 export interface XRayLocationProcessor {
-  processLocation(data: XRayDataTuple[]): XRayLocation | null;
+  processLocation(data: DataPoint[]): GeoJSONPoint | null;
   validateCoordinates(lat: number, lon: number): boolean;
   calculateCentroid(coordinates: Array<[number, number]>): [number, number];
-  calculateBoundingBox(coordinates: Array<[number, number]>): XRayBBox;
-  filterValidCoordinates(data: XRayDataTuple[]): XRayDataTuple[];
+  calculateBoundingBox(coordinates: Array<[number, number]>): BoundingBox;
+  filterValidCoordinates(data: DataPoint[]): DataPoint[];
 }
 
 // XRay Data Transformation Types
 export interface XRayDataTransformer {
-  normalizeData(data: XRayDataTuple[]): XRayDataTuple[];
-  sortByTimestamp(data: XRayDataTuple[]): XRayDataTuple[];
-  removeDuplicates(data: XRayDataTuple[]): XRayDataTuple[];
-  interpolateMissingPoints(data: XRayDataTuple[], maxGap: number): XRayDataTuple[];
-  smoothData(data: XRayDataTuple[], windowSize: number): XRayDataTuple[];
+  normalizeData(data: DataPoint[]): DataPoint[];
+  sortByTimestamp(data: DataPoint[]): DataPoint[];
+  removeDuplicates(data: DataPoint[]): DataPoint[];
+  interpolateMissingPoints(data: DataPoint[], maxGap: number): DataPoint[];
+  smoothData(data: DataPoint[], windowSize: number): DataPoint[];
 }
 
 // XRay Validation Types
 export interface XRayValidationRule {
   name: string;
   description: string;
-  validate(data: XRayDataTuple[]): { valid: boolean; errors: string[] };
+  validate(data: DataPoint[]): { valid: boolean; errors: string[] };
   severity: 'error' | 'warning' | 'info';
 }
 
@@ -158,7 +158,7 @@ export interface XRayQueryFilters {
     max?: number;
   };
   location?: {
-    bbox?: XRayBBox;
+    bbox?: BoundingBox;
     radius?: {
       center: [number, number];
       radiusKm: number;
