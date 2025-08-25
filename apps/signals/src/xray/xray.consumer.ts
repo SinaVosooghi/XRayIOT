@@ -10,7 +10,9 @@ import {
   normalizeXRayPayload,
 } from '@iotp/shared-messaging';
 import { ErrorHandlingService } from '../error-handling/error-handling.service';
-import { XRayPayloadAllFormats, XRayDocument, ProcessingContext, RawPayload } from '../types';
+import { XRayDocument, RawPayload } from '../types';
+import { ProcessingContext } from '../types';
+import { LegacyPayload } from '@iotp/shared-messaging';
 
 @Injectable()
 export class XRayConsumer {
@@ -26,8 +28,7 @@ export class XRayConsumer {
     exchange: 'iot.xray',
     routingKey: 'xray.raw',
   })
-  async processMessage(message: XRayPayloadAllFormats): Promise<void> {
-    const startTime = Date.now();
+  async processMessage(message: LegacyPayload): Promise<void> {
     const messageId =
       'id' in message && message.id && typeof message.id === 'string' ? message.id : 'unknown';
     const deviceId = this.extractDeviceId(message);
@@ -37,9 +38,11 @@ export class XRayConsumer {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _processingContext: ProcessingContext = {
       id: messageId,
+      messageId: messageId,
+      deviceId: deviceId,
       timestamp: new Date(),
       retryCount: 0,
-      metadata: { deviceId, startTime },
+      startTime: Date.now(),
     };
 
     try {
@@ -82,8 +85,10 @@ export class XRayConsumer {
           let location;
           if (normalized.data && normalized.data.length > 0) {
             const firstPoint = normalized.data[0];
-            const [, [lat, lon]] = firstPoint; // Extract lat, lon from [timestamp, [lat, lon, speed]]
-            location = { type: 'Point' as const, coordinates: [lon, lat] as [number, number] };
+            location = {
+              type: 'Point' as const,
+              coordinates: [firstPoint.lon, firstPoint.lat] as [number, number],
+            };
           }
 
           // Create signal record
@@ -117,7 +122,7 @@ export class XRayConsumer {
     }
   }
 
-  private extractDeviceId(message: XRayPayloadAllFormats): string {
+  private extractDeviceId(message: LegacyPayload): string {
     if (typeof message === 'object' && message !== null) {
       // Legacy format: {"<deviceId>": { data, time }}
       const entries = Object.entries(message);

@@ -13,7 +13,7 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
   return R * c;
 }
 
-export function calculateBBox(coordinates: Array<[number, [number, number, number]]>): {
+export function calculateBBox(coordinates: Array<{ lat: number; lon: number }>): {
   minLat: number;
   maxLat: number;
   minLon: number;
@@ -25,7 +25,7 @@ export function calculateBBox(coordinates: Array<[number, [number, number, numbe
     maxLon = -Infinity;
 
   for (const coord of coordinates) {
-    const [, [lat, lon]] = coord;
+    const { lat, lon } = coord;
     minLat = Math.min(minLat, lat);
     maxLat = Math.max(maxLat, lat);
     minLon = Math.min(minLon, lon);

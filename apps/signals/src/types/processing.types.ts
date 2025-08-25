@@ -1,10 +1,84 @@
 // Processing types for the Signals app
-import { XRayPayloadAllFormats, ValidationResult } from '@iotp/shared-types';
+import { ValidationResult } from '@iotp/shared-types';
+import { LegacyPayload } from '@iotp/shared-messaging';
+
+// App-specific processing types moved from shared library
+export interface ProcessingContext {
+  id: string; // Required by shared ProcessingResult
+  messageId: string;
+  deviceId: string;
+  timestamp: Date; // Required by shared ProcessingResult
+  retryCount: number;
+  startTime: number;
+}
+
+export interface ProcessingMetrics {
+  totalProcessed: number;
+  totalErrors: number;
+  totalRetries: number;
+  averageProcessingTime: number;
+  lastProcessedAt: Date;
+}
+
+export interface DeviceMetrics {
+  deviceId: string;
+  totalSignals: number;
+  lastSignalAt: Date;
+  averageDataLength: number;
+  averageDataVolume: number;
+  totalDistance: number;
+  maxSpeed: number;
+  averageSpeed: number;
+}
+
+// Signal-specific types moved from shared library
+export interface SignalQueryFilters {
+  deviceId?: string;
+  from?: Date;
+  to?: Date;
+  minDataLength?: number;
+  maxDataLength?: number;
+  minDataVolume?: number;
+  maxDataVolume?: number;
+  minLat?: number;
+  maxLat?: number;
+  minLon?: number;
+  maxLon?: number;
+  hasLocation?: boolean;
+  hasStats?: boolean;
+}
+
+export interface SignalSortOptions {
+  field: 'time' | 'deviceId' | 'dataLength' | 'dataVolume' | 'createdAt';
+  order: 'asc' | 'desc';
+}
+
+export interface SignalPagination {
+  limit: number;
+  skip?: number;
+  cursor?: string;
+}
+
+export interface SignalsConfig {
+  maxRetries: number;
+  retryDelays: number[];
+  circuitBreakerThreshold: number;
+  circuitBreakerTimeout: number;
+  maxProcessingTime: number;
+  batchSize: number;
+  enableMetrics: boolean;
+  enableTracing: boolean;
+}
+
+// Utility types moved from shared library
+export type TimeRange = 'hour' | 'day' | 'week' | 'month' | 'year';
+export type AggregationType = 'count' | 'sum' | 'avg' | 'min' | 'max';
+export type GroupByField = 'device' | 'time' | 'location' | 'stats';
 
 // Message Processing Pipeline
 export interface MessageProcessingPipeline {
   stages: MessageProcessingStage[];
-  execute(message: XRayPayloadAllFormats): Promise<MessageProcessingStageResult>;
+  execute(message: LegacyPayload): Promise<MessageProcessingStageResult>;
   addStage(stage: MessageProcessingStage): void;
   removeStage(stageName: string): void;
   getStage(stageName: string): MessageProcessingStage | undefined;
@@ -16,15 +90,15 @@ export interface MessageProcessingStage {
   order: number;
   enabled: boolean;
   execute(
-    message: XRayPayloadAllFormats,
+    message: LegacyPayload,
     context: MessageProcessingContext
   ): Promise<MessageProcessingStageResult>;
-  validate(message: XRayPayloadAllFormats): ValidationResult;
+  validate(message: LegacyPayload): ValidationResult;
 }
 
 export interface MessageProcessingStageResult {
   success: boolean;
-  output: XRayPayloadAllFormats;
+  output: LegacyPayload;
   metadata?: Record<string, unknown>;
   error?: string;
   executionTime: number;
@@ -57,21 +131,21 @@ export interface TransformationStep {
 
 // Message Normalization
 export interface MessageNormalizer {
-  normalize(message: XRayPayloadAllFormats): XRayPayloadAllFormats;
-  isNormalized(message: XRayPayloadAllFormats): boolean;
+  normalize(message: LegacyPayload): LegacyPayload;
+  isNormalized(message: LegacyPayload): boolean;
   getNormalizationRules(): NormalizationRule[];
 }
 
 export interface NormalizationRule {
   name: string;
   description: string;
-  condition: (message: XRayPayloadAllFormats) => boolean;
-  transform: (message: XRayPayloadAllFormats) => XRayPayloadAllFormats;
+  condition: (message: LegacyPayload) => boolean;
+  transform: (message: LegacyPayload) => LegacyPayload;
 }
 
 // Message Enrichment
 export interface MessageEnricher {
-  enrich(message: XRayPayloadAllFormats): Promise<EnrichedMessage>;
+  enrich(message: LegacyPayload): Promise<EnrichedMessage>;
   getEnrichmentSources(): EnrichmentSource[];
 }
 
@@ -79,11 +153,11 @@ export interface EnrichmentSource {
   name: string;
   description: string;
   enabled: boolean;
-  enrich(message: XRayPayloadAllFormats): Promise<Record<string, unknown>>;
+  enrich(message: LegacyPayload): Promise<Record<string, unknown>>;
 }
 
 export interface EnrichedMessage {
-  message: XRayPayloadAllFormats;
+  message: LegacyPayload;
   enrichment: Record<string, unknown>;
   enrichmentTimestamp: Date;
   enrichmentSources: string[];
@@ -91,9 +165,9 @@ export interface EnrichedMessage {
 
 // Message Deduplication
 export interface MessageDeduplicator {
-  isDuplicate(message: XRayPayloadAllFormats): Promise<boolean>;
-  markProcessed(message: XRayPayloadAllFormats): Promise<void>;
-  getDuplicateKey(message: XRayPayloadAllFormats): string;
+  isDuplicate(message: LegacyPayload): Promise<boolean>;
+  markProcessed(message: LegacyPayload): Promise<void>;
+  getDuplicateKey(message: LegacyPayload): string;
 }
 
 export interface DeduplicationConfig {
@@ -105,7 +179,7 @@ export interface DeduplicationConfig {
 
 export interface RoutingRule {
   name: string;
-  condition: (message: XRayPayloadAllFormats) => boolean;
+  condition: (message: LegacyPayload) => boolean;
   route: MessageRoute;
   priority: number;
 }
@@ -118,7 +192,7 @@ export interface MessageRoute {
 
 // Message Batching
 export interface MessageBatcher {
-  addMessage(message: XRayPayloadAllFormats): void;
+  addMessage(message: LegacyPayload): void;
   getBatch(): MessageBatch | null;
   isBatchReady(): boolean;
   getBatchSize(): number;
@@ -127,7 +201,7 @@ export interface MessageBatcher {
 
 export interface MessageBatch {
   id: string;
-  messages: XRayPayloadAllFormats[];
+  messages: LegacyPayload[];
   timestamp: Date;
   size: number;
 }
@@ -149,21 +223,21 @@ export interface BatchProcessingResult {
 
 // Message Priority
 export interface MessagePrioritizer {
-  getPriority(message: XRayPayloadAllFormats): number;
-  setPriority(message: XRayPayloadAllFormats, priority: number): void;
+  getPriority(message: LegacyPayload): number;
+  setPriority(message: LegacyPayload, priority: number): void;
   getPriorityLevels(): number[];
 }
 
 export interface PriorityMessage {
-  message: XRayPayloadAllFormats;
+  message: LegacyPayload;
   priority: number;
   priorityTimestamp: Date;
 }
 
 // Message Rate Limiting
 export interface MessageRateLimiter {
-  canProcess(message: XRayPayloadAllFormats): boolean;
-  recordProcessing(message: XRayPayloadAllFormats): void;
+  canProcess(message: LegacyPayload): boolean;
+  recordProcessing(message: LegacyPayload): void;
   getCurrentRate(): number;
   getLimit(): number;
   getWindow(): number;
@@ -177,9 +251,9 @@ export interface RateLimitConfig {
 
 // Message Circuit Breaker
 export interface MessageCircuitBreaker {
-  canProcess(message: XRayPayloadAllFormats): boolean;
-  recordSuccess(message: XRayPayloadAllFormats): void;
-  recordFailure(message: XRayPayloadAllFormats, error: Error): void;
+  canProcess(message: LegacyPayload): boolean;
+  recordSuccess(message: LegacyPayload): void;
+  recordFailure(message: LegacyPayload, error: Error): void;
   getState(): 'CLOSED' | 'OPEN' | 'HALF_OPEN';
   getFailureCount(): number;
   getLastFailureTime(): Date;
@@ -194,9 +268,9 @@ export interface CircuitBreakerConfig {
 
 // Message Retry
 export interface MessageRetryHandler {
-  shouldRetry(message: XRayPayloadAllFormats, error: Error): boolean;
-  getRetryDelay(message: XRayPayloadAllFormats, retryCount: number): number;
-  getMaxRetries(message: XRayPayloadAllFormats): number;
+  shouldRetry(message: LegacyPayload, error: Error): boolean;
+  getRetryDelay(message: LegacyPayload, retryCount: number): number;
+  getMaxRetries(message: LegacyPayload): number;
   isRetryableError(error: Error): boolean;
 }
 

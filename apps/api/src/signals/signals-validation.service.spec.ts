@@ -84,8 +84,6 @@ describe('SignalsValidationService', () => {
       );
     });
 
-
-
     it('should throw error for invalid coordinate types', () => {
       // Test with data that has wrong structure (will cause runtime error)
       const invalidData = [
@@ -94,9 +92,7 @@ describe('SignalsValidationService', () => {
         { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: '1.2038' as unknown as number }, // String speed
       ];
 
-      expect(() => service.validateDataFormat(invalidData)).toThrow(
-        BadRequestException
-      );
+      expect(() => service.validateDataFormat(invalidData)).toThrow(BadRequestException);
     });
 
     it('should throw error for invalid speed values', () => {

@@ -1,5 +1,12 @@
 // Producer app specific types
-import { DataPoint, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
+import { LegacyPayload } from '@iotp/shared-messaging';
+
+// Legacy types moved from shared library (producer-specific)
+export type XRayDataTuple = [number, [number, number, number]]; // [timestamp, [lat, lon, speed]] - Keep old format for services
+
+// Use shared LegacyPayload instead of duplicating
+export type LegacyXRayPayload = LegacyPayload;
 
 // Message publishing types
 export interface PublishOptions {
@@ -24,7 +31,7 @@ export interface BatchPublishResult {
   successfulPublishes: number;
   failedPublishes: number;
   errors: Array<{
-    message: XRayPayloadAllFormats;
+    message: LegacyXRayPayload;
     error: string;
     timestamp: number;
   }>;
@@ -69,7 +76,7 @@ export interface ProducerError extends Error {
   code: string;
   context: {
     operation: string;
-    message?: XRayPayloadAllFormats;
+    message?: LegacyXRayPayload;
     timestamp: number;
     retryCount?: number;
   };
@@ -135,11 +142,11 @@ export interface ProducerConfig {
 export interface IProducerService {
   sendTestData(): Promise<void>;
   publishMessage(
-    message: XRayPayloadAllFormats,
+    message: LegacyXRayPayload,
     options?: Partial<PublishOptions>
   ): Promise<PublishResult>;
   publishBatch(
-    messages: XRayPayloadAllFormats[],
+    messages: LegacyXRayPayload[],
     options?: Partial<PublishOptions>
   ): Promise<BatchPublishResult>;
   startContinuousTesting(config?: Partial<ContinuousTestingConfig>): void;
@@ -168,7 +175,7 @@ export interface MessagePublishedEvent extends ProducerEvent {
     messageId: string;
     exchange: string;
     routingKey: string;
-    message: XRayPayloadAllFormats;
+    message: LegacyXRayPayload;
   };
 }
 

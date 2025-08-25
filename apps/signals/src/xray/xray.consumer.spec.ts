@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { XRayConsumer } from './xray.consumer';
 import { getModelToken } from '@nestjs/mongoose';
 import { ErrorHandlingService } from '../error-handling/error-handling.service';
-import { LegacyXRayPayload } from '@iotp/shared-types';
+import { LegacyPayload } from '@iotp/shared-messaging';
 import {
   validateMessage,
   generateIdempotencyKey,
@@ -97,7 +97,7 @@ describe('XRayConsumer', () => {
   describe('processMessage', () => {
     it('should process valid X-Ray message successfully', async () => {
       // Arrange
-      const message: LegacyXRayPayload = {
+      const message: LegacyPayload = {
         'test-device-001': {
           data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
@@ -129,7 +129,7 @@ describe('XRayConsumer', () => {
 
     it('should handle duplicate messages with idempotency', async () => {
       // Arrange
-      const message: LegacyXRayPayload = {
+      const message: LegacyPayload = {
         'test-device-001': {
           data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
@@ -161,7 +161,7 @@ describe('XRayConsumer', () => {
 
     it('should handle processing errors gracefully', async () => {
       // Arrange
-      const message: LegacyXRayPayload = {
+      const message: LegacyPayload = {
         'test-device-001': {
           data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
@@ -178,7 +178,7 @@ describe('XRayConsumer', () => {
 
     it('should handle retry logic for failed messages', async () => {
       // Arrange
-      const message: LegacyXRayPayload = {
+      const message: LegacyPayload = {
         'test-device-001': {
           data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339764, speed: 1.2038 }],
           time: Date.now(),
@@ -208,7 +208,7 @@ describe('XRayConsumer', () => {
   describe('message processing flow', () => {
     it('should extract location from data points correctly', async () => {
       // Arrange
-      const message: LegacyXRayPayload = {
+      const message: LegacyPayload = {
         'test-device-001': {
           data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
           time: Date.now(),
@@ -225,7 +225,7 @@ describe('XRayConsumer', () => {
       // Override the normalizeXRayPayload mock for this test
       (normalizeXRayPayload as jest.Mock).mockReturnValue({
         deviceId: 'test-device-001',
-        data: [[1000, [51.339764, 12.339223, 1.2038]]], // Tuple format
+        data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }], // Object format
         time: Date.now(),
       });
 

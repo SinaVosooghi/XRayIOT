@@ -1,5 +1,6 @@
 // Validation types for the Signals app
-import { XRayPayloadAllFormats, DataPoint } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
+import { LegacyPayload } from '@iotp/shared-messaging';
 
 // Base Validation Types
 export interface ValidationRule<T = unknown> {
@@ -38,29 +39,29 @@ export interface ValidationResult<T = unknown> {
 }
 
 // Schema Validation Types
-export interface SchemaValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface SchemaValidationRule extends ValidationRule<LegacyPayload> {
   schema: unknown;
-  validateSchema(input: XRayPayloadAllFormats): ValidationRuleResult;
-  getSchemaErrors(input: XRayPayloadAllFormats): string[];
+  validateSchema(input: LegacyPayload): ValidationRuleResult;
+  getSchemaErrors(input: LegacyPayload): string[];
 }
 
 export interface SchemaValidator {
-  validate(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateSchema(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validate(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateSchema(message: LegacyPayload): ValidationResult<LegacyPayload>;
   getSchema(): unknown;
   setSchema(schema: unknown): void;
 }
 
 // Business Rule Validation Types
-export interface BusinessRuleValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface BusinessRuleValidationRule extends ValidationRule<LegacyPayload> {
   category: 'data' | 'business' | 'security' | 'compliance';
   priority: 'high' | 'medium' | 'low';
-  validateBusinessRules(input: XRayPayloadAllFormats): ValidationRuleResult;
+  validateBusinessRules(input: LegacyPayload): ValidationRuleResult;
 }
 
 export interface BusinessRuleValidator {
-  validate(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateBusinessRules(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validate(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateBusinessRules(message: LegacyPayload): ValidationResult<LegacyPayload>;
   getRules(): BusinessRuleValidationRule[];
   addRule(rule: BusinessRuleValidationRule): void;
   removeRule(ruleName: string): void;
@@ -69,17 +70,17 @@ export interface BusinessRuleValidator {
 }
 
 // Data Quality Validation Types
-export interface DataQualityValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface DataQualityValidationRule extends ValidationRule<LegacyPayload> {
   metric: 'completeness' | 'accuracy' | 'consistency' | 'timeliness' | 'validity';
   threshold: number;
-  validateDataQuality(input: XRayPayloadAllFormats): ValidationRuleResult;
-  calculateQualityScore(input: XRayPayloadAllFormats): number;
+  validateDataQuality(input: LegacyPayload): ValidationRuleResult;
+  calculateQualityScore(input: LegacyPayload): number;
 }
 
 export interface DataQualityValidator {
-  validate(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateDataQuality(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  getQualityScore(message: XRayPayloadAllFormats): DataQualityScore;
+  validate(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateDataQuality(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  getQualityScore(message: LegacyPayload): DataQualityScore;
   getRules(): DataQualityValidationRule[];
   setThreshold(metric: string, threshold: number): void;
 }
@@ -141,14 +142,14 @@ export interface CoordinateValidator {
 }
 
 // Device Validation Types
-export interface DeviceValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface DeviceValidationRule extends ValidationRule<LegacyPayload> {
   validateDeviceId(deviceId: string): ValidationRuleResult;
   validateDevicePermissions(deviceId: string): ValidationRuleResult;
   validateDeviceQuota(deviceId: string): ValidationRuleResult;
 }
 
 export interface DeviceValidator {
-  validateDevice(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validateDevice(message: LegacyPayload): ValidationResult<LegacyPayload>;
   validateDeviceId(deviceId: string): ValidationResult<string>;
   validateDevicePermissions(deviceId: string): ValidationResult<string>;
   validateDeviceQuota(deviceId: string): ValidationResult<string>;
@@ -167,7 +168,7 @@ export interface DeviceQuota {
 }
 
 // Time Validation Types
-export interface TimeValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface TimeValidationRule extends ValidationRule<LegacyPayload> {
   validateTimestamp(timestamp: number): ValidationRuleResult;
   validateTimeRange(from: number, to: number): ValidationRuleResult;
   validateTimeOrder(data: DataPoint[]): ValidationRuleResult;
@@ -175,7 +176,7 @@ export interface TimeValidationRule extends ValidationRule<XRayPayloadAllFormats
 }
 
 export interface TimeValidator {
-  validateTime(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validateTime(message: LegacyPayload): ValidationResult<LegacyPayload>;
   validateTimestamp(timestamp: number): ValidationResult<number>;
   validateTimeRange(from: number, to: number): ValidationResult<{ from: number; to: number }>;
   validateTimeOrder(data: DataPoint[]): ValidationResult<DataPoint[]>;
@@ -185,17 +186,17 @@ export interface TimeValidator {
 }
 
 // Size Validation Types
-export interface SizeValidationRule extends ValidationRule<XRayPayloadAllFormats> {
+export interface SizeValidationRule extends ValidationRule<LegacyPayload> {
   validateDataLength(data: DataPoint[]): ValidationRuleResult;
-  validateDataVolume(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateMessageSize(message: XRayPayloadAllFormats): ValidationRuleResult;
+  validateDataVolume(message: LegacyPayload): ValidationRuleResult;
+  validateMessageSize(message: LegacyPayload): ValidationRuleResult;
 }
 
 export interface SizeValidator {
-  validateSize(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validateSize(message: LegacyPayload): ValidationResult<LegacyPayload>;
   validateDataLength(data: DataPoint[]): ValidationResult<DataPoint[]>;
-  validateDataVolume(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateMessageSize(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
+  validateDataVolume(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateMessageSize(message: LegacyPayload): ValidationResult<LegacyPayload>;
   getSizeLimits(): SizeLimits;
   setSizeLimits(limits: SizeLimits): void;
 }
@@ -210,55 +211,55 @@ export interface SizeLimits {
 }
 
 // Format Validation Types
-export interface FormatValidationRule extends ValidationRule<XRayPayloadAllFormats> {
-  validateFormat(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateStructure(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateTypes(message: XRayPayloadAllFormats): ValidationRuleResult;
+export interface FormatValidationRule extends ValidationRule<LegacyPayload> {
+  validateFormat(message: LegacyPayload): ValidationRuleResult;
+  validateStructure(message: LegacyPayload): ValidationRuleResult;
+  validateTypes(message: LegacyPayload): ValidationRuleResult;
 }
 
 export interface FormatValidator {
-  validateFormat(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateStructure(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateTypes(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  isLegacyFormat(message: XRayPayloadAllFormats): boolean;
-  isNormalizedFormat(message: XRayPayloadAllFormats): boolean;
-  getFormatType(message: XRayPayloadAllFormats): 'legacy' | 'normalized' | 'unknown';
+  validateFormat(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateStructure(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateTypes(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  isLegacyFormat(message: LegacyPayload): boolean;
+  isNormalizedFormat(message: LegacyPayload): boolean;
+  getFormatType(message: LegacyPayload): 'legacy' | 'normalized' | 'unknown';
 }
 
 // Security Validation Types
-export interface SecurityValidationRule extends ValidationRule<XRayPayloadAllFormats> {
-  validateAuthentication(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateAuthorization(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateIntegrity(message: XRayPayloadAllFormats): ValidationRuleResult;
-  validateEncryption(message: XRayPayloadAllFormats): ValidationRuleResult;
+export interface SecurityValidationRule extends ValidationRule<LegacyPayload> {
+  validateAuthentication(message: LegacyPayload): ValidationRuleResult;
+  validateAuthorization(message: LegacyPayload): ValidationRuleResult;
+  validateIntegrity(message: LegacyPayload): ValidationRuleResult;
+  validateEncryption(message: LegacyPayload): ValidationRuleResult;
 }
 
 export interface SecurityValidator {
-  validateSecurity(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateAuthentication(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateAuthorization(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateIntegrity(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  validateEncryption(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  isAuthenticated(message: XRayPayloadAllFormats): boolean;
-  isAuthorized(message: XRayPayloadAllFormats): boolean;
+  validateSecurity(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateAuthentication(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateAuthorization(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateIntegrity(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  validateEncryption(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  isAuthenticated(message: LegacyPayload): boolean;
+  isAuthorized(message: LegacyPayload): boolean;
 }
 
 // Composite Validation Types
 export interface CompositeValidator {
   validators: Array<{
     name: string;
-    validator: ValidationRule<XRayPayloadAllFormats>;
+    validator: ValidationRule<LegacyPayload>;
     enabled: boolean;
     order: number;
   }>;
 
-  validate(message: XRayPayloadAllFormats): ValidationResult<XRayPayloadAllFormats>;
-  addValidator(validator: ValidationRule<XRayPayloadAllFormats>, order?: number): void;
+  validate(message: LegacyPayload): ValidationResult<LegacyPayload>;
+  addValidator(validator: ValidationRule<LegacyPayload>, order?: number): void;
   removeValidator(validatorName: string): void;
   enableValidator(validatorName: string): void;
   disableValidator(validatorName: string): void;
   reorderValidators(validatorName: string, newOrder: number): void;
-  getValidator(validatorName: string): ValidationRule<XRayPayloadAllFormats> | undefined;
+  getValidator(validatorName: string): ValidationRule<LegacyPayload> | undefined;
 }
 
 // Validation Configuration Types

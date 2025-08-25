@@ -1,6 +1,6 @@
 import { testInfrastructure, waitForCondition } from './test-infrastructure';
 import { config } from 'dotenv';
-import { PaginatedSignalResponse, SignalResponse } from '@iotp/shared-types';
+import { PaginatedSignals, SignalDto } from '@iotp/shared-types';
 import {
   createCoordinateTestData,
   createSimpleTestData,
@@ -107,7 +107,7 @@ describe('Real Infrastructure Integration Tests', () => {
 
       const signals = await fetchSignals(testApiUrl);
       const ourSignal = signals.items.find(
-        (s: SignalResponse) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_001
+        (s: SignalDto) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_001
       );
 
       validateSignal(ourSignal!, COMMON_TEST_DEVICES.DEVICE_001, 3);
@@ -135,7 +135,7 @@ describe('Real Infrastructure Integration Tests', () => {
 
       // Verify the test data is present
       const testSignal = signals.items.find(
-        (s: SignalResponse) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_002
+        (s: SignalDto) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_002
       );
       expect(testSignal).toBeDefined();
 
@@ -159,7 +159,7 @@ describe('Real Infrastructure Integration Tests', () => {
       // Retrieve signal
       const signals = await fetchSignals(testApiUrl);
       const signal = signals.items.find(
-        (s: SignalResponse) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_003
+        (s: SignalDto) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_003
       );
 
       // Verify data integrity
@@ -273,7 +273,7 @@ describe('Real Infrastructure Integration Tests', () => {
 
       // Verify the test data is present
       const testSignal = signals.items.find(
-        (s: SignalResponse) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_004
+        (s: SignalDto) => s.deviceId === COMMON_TEST_DEVICES.DEVICE_004
       );
       expect(testSignal).toBeDefined();
 
@@ -309,7 +309,7 @@ describe('Real Infrastructure Integration Tests', () => {
       // Should only have one signal (idempotency)
       const signals = await fetchSignals(testApiUrl);
       const deviceSignals = signals.items.filter(
-        (s: SignalResponse) => s.deviceId === COMMON_TEST_DEVICES.IDEMPOTENCY_TEST
+        (s: SignalDto) => s.deviceId === COMMON_TEST_DEVICES.IDEMPOTENCY_TEST
       );
 
       expect(deviceSignals.length).toBe(1);
@@ -341,7 +341,7 @@ describe('Real Infrastructure Integration Tests', () => {
       );
       expect(timeFilterResponse.ok).toBe(true);
 
-      const filteredSignals = (await timeFilterResponse.json()) as PaginatedSignalResponse;
+      const filteredSignals = (await timeFilterResponse.json()) as PaginatedSignals;
       expect(filteredSignals.items.length).toBeGreaterThanOrEqual(0);
 
       console.log('✅ Time range filtering test completed successfully');
@@ -365,8 +365,7 @@ describe('Real Infrastructure Integration Tests', () => {
       );
       expect(locationFilterResponse.ok).toBe(true);
 
-      const locationFilteredSignals =
-        (await locationFilterResponse.json()) as PaginatedSignalResponse;
+      const locationFilteredSignals = (await locationFilterResponse.json()) as PaginatedSignals;
       expect(locationFilteredSignals.items.length).toBeGreaterThanOrEqual(0);
 
       console.log('✅ Location filtering test completed successfully');
@@ -392,7 +391,7 @@ describe('Real Infrastructure Integration Tests', () => {
       );
       expect(sortByTimeResponse.ok).toBe(true);
 
-      const timeSortedSignals = (await sortByTimeResponse.json()) as PaginatedSignalResponse;
+      const timeSortedSignals = (await sortByTimeResponse.json()) as PaginatedSignals;
       expect(timeSortedSignals.items.length).toBeGreaterThanOrEqual(1);
 
       // Test sorting by dataLength
@@ -401,8 +400,7 @@ describe('Real Infrastructure Integration Tests', () => {
       );
       expect(sortByDataLengthResponse.ok).toBe(true);
 
-      const dataLengthSortedSignals =
-        (await sortByDataLengthResponse.json()) as PaginatedSignalResponse;
+      const dataLengthSortedSignals = (await sortByDataLengthResponse.json()) as PaginatedSignals;
       expect(dataLengthSortedSignals.items.length).toBeGreaterThanOrEqual(1);
 
       console.log('✅ Sorting functionality test completed successfully');
@@ -426,14 +424,14 @@ describe('Real Infrastructure Integration Tests', () => {
       const page1Response = await fetch(`${testApiUrl}/api/signals?limit=2&skip=0`);
       expect(page1Response.ok).toBe(true);
 
-      const page1 = (await page1Response.json()) as PaginatedSignalResponse;
+      const page1 = (await page1Response.json()) as PaginatedSignals;
       expect(page1.items.length).toBeLessThanOrEqual(2);
 
       // Test second page using skip instead of cursor
       const page2Response = await fetch(`${testApiUrl}/api/signals?limit=2&skip=2`);
       expect(page2Response.ok).toBe(true);
 
-      const page2 = (await page2Response.json()) as PaginatedSignalResponse;
+      const page2 = (await page2Response.json()) as PaginatedSignals;
       expect(page2.items.length).toBeGreaterThanOrEqual(0);
 
       console.log('✅ Pagination test completed successfully');
@@ -560,7 +558,7 @@ describe('Real Infrastructure Integration Tests', () => {
             return false;
           }
 
-          const signals = (await response.json()) as PaginatedSignalResponse;
+          const signals = (await response.json()) as PaginatedSignals;
           const currentProcessed = signals.items.length;
 
           if (checkCount % 5 === 0 || currentProcessed !== processedCount) {
@@ -706,7 +704,7 @@ describe('Real Infrastructure Integration Tests', () => {
             return false;
           }
 
-          const signals = (await response.json()) as PaginatedSignalResponse;
+          const signals = (await response.json()) as PaginatedSignals;
           const currentProcessed = signals.items.length;
 
           if (checkCount % 5 === 0 || currentProcessed !== processedCount) {

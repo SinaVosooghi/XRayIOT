@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { TestDataGeneratorService } from './test-data-generator.service';
-import { XRayPayloadAllFormats } from '@iotp/shared-types';
+import { LegacyXRayPayload } from './producer.types';
 import {
   PublishOptions,
   PublishResult,
@@ -43,7 +43,7 @@ export class ProducerService implements IProducerService {
   }
 
   async publishMessage(
-    message: XRayPayloadAllFormats,
+    message: LegacyXRayPayload,
     options?: Partial<PublishOptions>
   ): Promise<PublishResult> {
     const startTime = Date.now();
@@ -77,7 +77,7 @@ export class ProducerService implements IProducerService {
   }
 
   async publishBatch(
-    messages: XRayPayloadAllFormats[],
+    messages: LegacyXRayPayload[],
     options?: Partial<PublishOptions>
   ): Promise<BatchPublishResult> {
     const result: BatchPublishResult = {
@@ -158,7 +158,7 @@ export class ProducerService implements IProducerService {
     return this.isRunning;
   }
 
-  async processBatch(messages: XRayPayloadAllFormats[]): Promise<void> {
+  async processBatch(messages: LegacyXRayPayload[]): Promise<void> {
     try {
       await this.publishBatch(messages);
       this.logger.log(`Processed batch of ${messages.length} messages`);

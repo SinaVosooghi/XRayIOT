@@ -66,9 +66,24 @@ export class TestDataGeneratorService {
     return {
       'precision-sensor': {
         data: [
-          { timestamp: 100, lat: 51.50735123456789, lon: -0.1277587654321, speed: 1.234567890123456 },
-          { timestamp: 200, lat: 51.5073523456789, lon: -0.12775765432109, speed: 2.345678901234567 },
-          { timestamp: 300, lat: 51.50735345678901, lon: -0.12775654321098, speed: 3.456789012345678 },
+          {
+            timestamp: 100,
+            lat: 51.50735123456789,
+            lon: -0.1277587654321,
+            speed: 1.234567890123456,
+          },
+          {
+            timestamp: 200,
+            lat: 51.5073523456789,
+            lon: -0.12775765432109,
+            speed: 2.345678901234567,
+          },
+          {
+            timestamp: 300,
+            lat: 51.50735345678901,
+            lon: -0.12775654321098,
+            speed: 3.456789012345678,
+          },
         ],
         time: Date.now(),
       },

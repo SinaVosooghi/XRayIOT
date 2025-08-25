@@ -3,7 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { byteLengthUtf8, haversineMeters } from '@iotp/shared-utils';
 import { IRawStore } from '../raw/interfaces';
-import { XRayDocument, XRayPayloadAllFormats, RawPayload } from '../types';
+import { XRayDocument, RawPayload } from '../types';
+import { LegacyPayload } from '@iotp/shared-messaging';
 
 @Injectable()
 export class XRayService {
@@ -14,7 +15,7 @@ export class XRayService {
     @Inject('IRawStore') private rawStore: IRawStore
   ) {}
 
-  async saveFromNormalizedPayload(norm: XRayPayloadAllFormats): Promise<XRayDocument> {
+  async saveFromNormalizedPayload(norm: LegacyPayload): Promise<XRayDocument> {
     // Extract deviceId from legacy format
     const deviceId = Object.keys(norm)[0];
     const { data: samples, time } = norm[deviceId];
@@ -81,7 +82,7 @@ export class XRayService {
     });
   }
 
-  async processBatch(messages: XRayPayloadAllFormats[]): Promise<XRayDocument[]> {
+  async processBatch(messages: LegacyPayload[]): Promise<XRayDocument[]> {
     const results: XRayDocument[] = [];
 
     for (const message of messages) {

@@ -245,7 +245,9 @@ describe('SignalsController', () => {
         expect.objectContaining({
           deviceId: 'test-device',
           time: anyNumber(),
-          data: arrayContaining([{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }]), // DataPoint format
+          data: arrayContaining([
+            { timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 },
+          ]), // DataPoint format
         })
       );
     });
@@ -285,7 +287,9 @@ describe('SignalsController', () => {
       expect(service.update).toHaveBeenCalledWith(
         signalId,
         expect.objectContaining({
-          data: arrayContaining([{ timestamp: anyNumber(), lat: 51.339764, lon: 12.339223, speed: 1.2038 }]), // DataPoint format
+          data: arrayContaining([
+            { timestamp: anyNumber(), lat: 51.339764, lon: 12.339223, speed: 1.2038 },
+          ]), // DataPoint format
         })
       );
     });

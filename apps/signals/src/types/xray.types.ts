@@ -1,23 +1,26 @@
 // XRay-specific types for the Signals app
-import { XRayDocument, BoundingBox, GeoJSONPoint, DataPoint } from '@iotp/shared-types';
+import {
+  XRayDocument,
+  BoundingBox,
+  GeoJSONPoint,
+  DataPoint,
+  ProcessingResult,
+} from '@iotp/shared-types';
 
-// XRay Processing Types
-export interface XRayProcessingContext {
+import { ProcessingContext, ProcessingMetrics } from './processing.types';
+
+// XRay Processing Types - Using shared ProcessingContext
+export interface XRayProcessingContext extends ProcessingContext {
   messageId: string;
   deviceId: string;
-  timestamp: number;
-  startTime: number;
-  retryCount: number;
   maxRetries: number;
   processingTime?: number;
 }
 
-export interface XRayProcessingResult {
-  success: boolean;
+export interface XRayProcessingResult
+  extends ProcessingResult<{ signalId?: string; rawRef?: string }> {
   signalId?: string;
   rawRef?: string;
-  processingTime: number;
-  error?: string;
   context: XRayProcessingContext;
 }
 
@@ -116,14 +119,9 @@ export interface XRayValidationResult {
 }
 
 // XRay Metrics Types
-export interface XRayProcessingMetrics {
-  totalProcessed: number;
-  totalErrors: number;
-  totalRetries: number;
-  averageProcessingTime: number;
+export interface XRayProcessingMetrics extends ProcessingMetrics {
   averageDataLength: number;
   averageDataVolume: number;
-  lastProcessedAt: Date;
   processingRate: number; // messages per second
   errorRate: number; // errors per second
   retryRate: number; // retries per second

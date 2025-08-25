@@ -1,42 +1,45 @@
-import { XRayPayloadAllFormats, XRayDataTuple } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
+
+// Generic payload types for messaging
+export interface GenericPayload {
+  deviceId: string;
+  data: DataPoint[];
+  time: number;
+}
+
+export interface LegacyPayload {
+  [deviceId: string]: {
+    data: DataPoint[];
+    time: number;
+  };
+}
 
 export * from './schemas/xray.schema';
 export * from './validators/ajv';
 export * from './rmq/topology';
 
-export function normalizeXRayPayload(input: XRayPayloadAllFormats): {
-  deviceId: string;
-  data: XRayDataTuple[];
-  time: number;
-} {
+export function normalizeXRayPayload(input: LegacyPayload): GenericPayload {
   // If already normalized
   if (input && typeof input === 'object' && 'deviceId' in input && 'data' in input) {
-    return input as unknown as {
-      deviceId: string;
-      data: XRayDataTuple[];
-      time: number;
-    };
+    return input as unknown as GenericPayload;
   }
 
   const [deviceId, content] = Object.entries(input)[0];
-  
-  // Convert DataPoint[] to XRayDataTuple[] if needed
-  let data: XRayDataTuple[];
+
+  // Convert to generic format
+  let data: DataPoint[];
+
   if (Array.isArray(content.data)) {
-    // Check if it's already in tuple format
-    if (content.data.length > 0 && Array.isArray(content.data[0]) && content.data[0].length === 2) {
-      data = content.data as unknown as XRayDataTuple[];
-    } else {
-      // Convert from DataPoint[] to XRayDataTuple[]
-      data = (content.data as any[]).map(point => [
-        point.timestamp,
-        [point.lat, point.lon, point.speed]
-      ]);
-    }
+    data = content.data.map(point => ({
+      timestamp: point.timestamp,
+      lat: point.lat,
+      lon: point.lon,
+      speed: point.speed,
+    }));
   } else {
     data = [];
   }
-  
+
   return { deviceId, data, time: content.time };
 }
 
@@ -77,7 +80,7 @@ export function validateMessage(message: unknown): { valid: boolean; errors: str
   };
 }
 
-export function generateIdempotencyKey(message: XRayPayloadAllFormats): string {
+export function generateIdempotencyKey(message: LegacyPayload): string {
   const normalized = normalizeXRayPayload(message);
   const content = JSON.stringify({
     deviceId: normalized.deviceId,

@@ -3,7 +3,7 @@ import { ProducerService } from './producer.service';
 import { TestDataGeneratorService } from './test-data-generator.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@nestjs/config';
-import { LegacyXRayPayload, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { LegacyXRayPayload } from './producer.types';
 
 describe('ProducerService', () => {
   let service: ProducerService;
@@ -108,7 +108,7 @@ describe('ProducerService', () => {
 
       // Act & Assert
       await expect(
-        service.publishMessage(invalidData as unknown as XRayPayloadAllFormats)
+        service.publishMessage(invalidData as unknown as LegacyXRayPayload)
       ).rejects.toThrow();
     });
   });
@@ -151,7 +151,7 @@ describe('ProducerService', () => {
 
       // Act
       const result = await service.publishBatch(
-        mockFormats.map(f => f.data as unknown as XRayPayloadAllFormats)
+        mockFormats.map(f => f.data as unknown as LegacyXRayPayload)
       );
 
       // Assert
@@ -174,7 +174,7 @@ describe('ProducerService', () => {
 
       // Act
       const result = await service.publishBatch(
-        mockFormats.map(f => f.data as unknown as XRayPayloadAllFormats)
+        mockFormats.map(f => f.data as unknown as LegacyXRayPayload)
       );
 
       // Assert
@@ -268,7 +268,7 @@ describe('ProducerService', () => {
 
       // Act
       const result = await service.publishBatch(
-        mockEdgeCases.map(edge => edge.data as unknown as XRayPayloadAllFormats)
+        mockEdgeCases.map(edge => edge.data as unknown as LegacyXRayPayload)
       );
 
       // Assert
@@ -327,7 +327,7 @@ describe('ProducerService', () => {
       mockAmqpConnection.publish.mockResolvedValue(undefined);
 
       // Act
-      const result = await service.publishMessage(invalidData as unknown as XRayPayloadAllFormats);
+      const result = await service.publishMessage(invalidData as unknown as LegacyXRayPayload);
 
       // Assert
       expect(result.success).toBe(true); // publishMessage returns PublishResult

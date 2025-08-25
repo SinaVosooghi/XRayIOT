@@ -77,25 +77,3 @@ export interface SignalDto {
   createdAt: Date;
   updatedAt: Date;
 }
-
-// Legacy tuple format for backward compatibility
-export type DataPointTuple = [number, [number, number, number]]; // [timestamp, [lat, lon, speed]]
-
-// Conversion helpers
-export const dataPointToTuple = (point: DataPoint): DataPointTuple => [
-  point.timestamp,
-  [point.lat, point.lon, point.speed],
-];
-
-export const tupleToDataPoint = (tuple: DataPointTuple): DataPoint => ({
-  timestamp: tuple[0],
-  lat: tuple[1][0],
-  lon: tuple[1][1],
-  speed: tuple[1][2],
-});
-
-export const dataPointsToTuples = (points: DataPoint[]): DataPointTuple[] =>
-  points.map(dataPointToTuple);
-
-export const tuplesToDataPoints = (tuples: DataPointTuple[]): DataPoint[] =>
-  tuples.map(tupleToDataPoint);

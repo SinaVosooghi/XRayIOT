@@ -1,4 +1,4 @@
-import { PaginatedSignalResponse, SignalResponse } from '@iotp/shared-types';
+import { PaginatedSignals, SignalDto } from '@iotp/shared-types';
 
 // Types for test data - matching the actual format used in tests
 export interface TestDataPoint {
@@ -80,7 +80,7 @@ export const sendSampleMessage = async (producerUrl: string): Promise<globalThis
 export const fetchSignals = async (
   apiUrl: string,
   queryParams?: Record<string, string | number>
-): Promise<PaginatedSignalResponse> => {
+): Promise<PaginatedSignals> => {
   const url = new globalThis.URL(`${apiUrl}/api/signals`);
 
   if (queryParams) {
@@ -94,19 +94,16 @@ export const fetchSignals = async (
     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
   }
 
-  return response.json() as Promise<PaginatedSignalResponse>;
+  return response.json() as Promise<PaginatedSignals>;
 };
 
-export const fetchSignalById = async (
-  apiUrl: string,
-  signalId: string
-): Promise<SignalResponse> => {
+export const fetchSignalById = async (apiUrl: string, signalId: string): Promise<SignalDto> => {
   const response = await fetch(`${apiUrl}/api/signals/${signalId}`);
   if (!response.ok) {
     throw new Error(`Signal fetch failed: ${response.status} ${response.statusText}`);
   }
 
-  return response.json() as Promise<SignalResponse>;
+  return response.json() as Promise<SignalDto>;
 };
 
 export const fetchRawMetadata = async (
@@ -217,7 +214,7 @@ export const waitForSignalsWithLocation = async (
 
 // Validation utilities
 export const validateSignal = (
-  signal: SignalResponse,
+  signal: SignalDto,
   expectedDeviceId: string,
   expectedDataLength: number
 ): void => {
@@ -228,7 +225,7 @@ export const validateSignal = (
 };
 
 export const validateSignalWithLocation = (
-  signal: SignalResponse,
+  signal: SignalDto,
   expectedDeviceId: string,
   expectedDataLength: number
 ): void => {

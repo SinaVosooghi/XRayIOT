@@ -1,7 +1,8 @@
 import { Controller, Post, Get, Delete, Body, Query } from '@nestjs/common';
 import { ProducerService } from './producer.service';
 import { TestDataGeneratorService } from './test-data-generator.service';
-import { DataPoint, XRayPayloadAllFormats } from '@iotp/shared-types';
+import { DataPoint } from '@iotp/shared-types';
+import { LegacyXRayPayload } from './producer.types';
 import { HealthCheckResult, ProducerMetrics, TestFormat } from './producer.types';
 
 @Controller('test')
@@ -24,7 +25,7 @@ export class TestController {
 
   @Post('publish/message')
   async publishMessage(
-    @Body() data: XRayPayloadAllFormats
+    @Body() data: LegacyXRayPayload
   ): Promise<{ success: boolean; message: string }> {
     try {
       const result = await this.producerService.publishMessage(data);
@@ -37,7 +38,7 @@ export class TestController {
 
   @Post('send-batch')
   async sendBatchData(
-    @Body() messages: XRayPayloadAllFormats[]
+    @Body() messages: LegacyXRayPayload[]
   ): Promise<{ success: boolean; message: string }> {
     try {
       const result = await this.producerService.publishBatch(messages);

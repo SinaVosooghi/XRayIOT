@@ -1,6 +1,5 @@
 // Common types to replace 'any' usage throughout the codebase
 import { Buffer } from 'buffer';
-import { DataPoint, CreateSignalDto } from './dto/signal.dto';
 
 // Error types
 export interface ErrorWithMessage {
@@ -17,31 +16,6 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
-
-// Alternative format for signals service compatibility (DEPRECATED - use DataPoint[] instead)
-export type XRayDataTuple = [number, [number, number, number]]; // [timestamp, [lat, lon, speed]] - Keep old format for services
-
-
-
-
-
-// Union type for both formats
-export type XRayPayloadUnion = never; // No more payload types, use CreateSignalDto instead
-
-// Legacy format for backward compatibility (used in tests and some services)
-export interface LegacyXRayPayload {
-  [deviceId: string]: {
-    data: DataPoint[];
-    time: number;
-  };
-}
-
-// Union type including legacy format
-export type XRayPayloadAllFormats = LegacyXRayPayload; // Only legacy format remains
-
-// Canonical alternatives to legacy types
-export type CanonicalDataPoint = DataPoint;
-export type CanonicalCreateSignalDto = CreateSignalDto;
 
 // Buffer and binary data types
 export interface BinaryData {
@@ -128,22 +102,6 @@ export interface AppConfig {
   debug: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   features: Record<string, boolean>;
-}
-
-// API Response types
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  message: string;
-  data?: T;
-  error?: string;
-}
-
-// DEPRECATED: Use Paginated<T> from generic.types instead
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  limit: number;
 }
 
 // Re-export canonical pagination type
