@@ -26,12 +26,52 @@ export class XRayConsumer {
 
   @RabbitSubscribe({
     exchange: 'iot.xray',
-    routingKey: 'xray.raw',
+    routingKey: 'xray.raw.v1',
+    queue: 'xray.raw.v1',
+    queueOptions: {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': 'iot.xray.dlx',
+        'x-dead-letter-routing-key': 'xray.raw.v1.dlq',
+        'x-message-ttl': 3600000, // 1 hour
+      },
+    },
+    errorHandler: (channel, msg, error) => {
+      // Custom error handling for failed messages
+      const retryCount = (msg.properties.headers?.['x-retry-count'] as number) || 0;
+
+      if (retryCount < 3) {
+        // Send to retry queue
+        channel.publish('iot.xray.dlx', 'xray.raw.v1.retry', msg.content, {
+          headers: {
+            ...msg.properties.headers,
+            'x-retry-count': retryCount + 1,
+          },
+        });
+        channel.ack(msg);
+      } else {
+        // Send to DLQ
+        channel.publish('iot.xray.dlx', 'xray.raw.v1.dlq', msg.content, {
+          headers: {
+            ...msg.properties.headers,
+            'x-error': error instanceof Error ? error.message : String(error),
+            'x-final-retry': true,
+          },
+        });
+        channel.ack(msg);
+      }
+    },
   })
-  async processMessage(message: LegacyPayload): Promise<void> {
-    const messageId =
-      'id' in message && message.id && typeof message.id === 'string' ? message.id : 'unknown';
+  async processMessage(
+    message: LegacyPayload,
+    amqpMsg: { properties: { messageId?: string; headers?: Record<string, unknown> } }
+  ): Promise<void> {
+    const messageId = amqpMsg.properties.messageId || 'unknown';
     const deviceId = this.extractDeviceId(message);
+    const correlationId = (amqpMsg.properties.headers?.['x-correlation-id'] as string) || 'unknown';
+
+    // Add correlation ID to all logs
+    this.logger.log(`Processing message with correlation ID: ${correlationId}`);
 
     // Note: processingContext is defined but not currently used
     // It can be used for future error handling enhancements
@@ -118,7 +158,8 @@ export class XRayConsumer {
         this.logger.warn('Message processing failed or was skipped');
       }
     } catch (error) {
-      this.logger.error('Unexpected error in message processing:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Unexpected error in message processing:', errorMessage);
     }
   }
 

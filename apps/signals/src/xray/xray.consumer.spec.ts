@@ -17,6 +17,16 @@ jest.mock('@iotp/shared-messaging', () => ({
   normalizeXRayPayload: jest.fn(),
 }));
 
+// Mock AMQP message object
+const createMockAmqpMsg = (messageId?: string, correlationId?: string) => ({
+  properties: {
+    messageId: messageId || 'test-message-id',
+    headers: {
+      'x-correlation-id': correlationId || 'test-correlation-id',
+    },
+  },
+});
+
 describe('XRayConsumer', () => {
   let consumer: XRayConsumer;
 
@@ -116,7 +126,7 @@ describe('XRayConsumer', () => {
       mockRawStore.store.mockResolvedValue('mock-raw-ref');
 
       // Act
-      await consumer.processMessage(message);
+      await consumer.processMessage(message, createMockAmqpMsg());
 
       // Assert
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
@@ -147,7 +157,7 @@ describe('XRayConsumer', () => {
       MockXRayModel.findOne.mockResolvedValue({ _id: 'existing-signal' });
 
       // Act
-      await consumer.processMessage(message);
+      await consumer.processMessage(message, createMockAmqpMsg());
 
       // Assert
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
@@ -172,7 +182,7 @@ describe('XRayConsumer', () => {
       mockErrorHandlingService.withRetry.mockRejectedValue(new Error('Processing failed'));
 
       // Act & Assert - should not throw since we catch errors in processMessage
-      await expect(consumer.processMessage(message)).resolves.toBeUndefined();
+      await expect(consumer.processMessage(message, createMockAmqpMsg())).resolves.toBeUndefined();
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
     });
 
@@ -198,7 +208,7 @@ describe('XRayConsumer', () => {
       mockRawStore.store.mockResolvedValue('mock-raw-ref');
 
       // Act
-      await consumer.processMessage(message);
+      await consumer.processMessage(message, createMockAmqpMsg());
 
       // Assert
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
@@ -234,7 +244,7 @@ describe('XRayConsumer', () => {
       mockRawStore.store.mockResolvedValue('mock-raw-ref');
 
       // Act
-      await consumer.processMessage(message);
+      await consumer.processMessage(message, createMockAmqpMsg());
 
       // Assert
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
@@ -277,7 +287,7 @@ describe('XRayConsumer', () => {
       mockRawStore.store.mockResolvedValue('mock-raw-ref');
 
       // Act
-      await consumer.processMessage(message);
+      await consumer.processMessage(message, createMockAmqpMsg());
 
       // Assert
       expect(mockErrorHandlingService.withRetry).toHaveBeenCalled();
