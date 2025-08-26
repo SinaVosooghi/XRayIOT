@@ -58,7 +58,7 @@ describe('ProducerService', () => {
         case 'RABBITMQ_EXCHANGE':
           return 'iot.xray';
         case 'RABBITMQ_ROUTING_KEY':
-          return 'xray.raw';
+          return 'xray.raw.v1';
         default:
           return undefined;
       }
@@ -82,7 +82,12 @@ describe('ProducerService', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith('iot.xray', 'xray.raw', testData);
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        testData,
+        expect.anything()
+      );
     });
 
     it('should handle RabbitMQ publishing errors gracefully', async () => {
@@ -125,7 +130,12 @@ describe('ProducerService', () => {
 
       // Assert
       expect(result).toBeUndefined(); // sendTestData returns void
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith('iot.xray', 'xray.raw', mockTestData);
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        mockTestData,
+        expect.anything()
+      );
     });
   });
 
@@ -206,8 +216,9 @@ describe('ProducerService', () => {
       // Note: publishMessage doesn't call generateRandomTestData, it just publishes the data
       expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
         'iot.xray',
-        'xray.raw',
-        mockRandomData
+        'xray.raw.v1',
+        mockRandomData,
+        expect.anything()
       );
     });
 
@@ -313,7 +324,12 @@ describe('ProducerService', () => {
 
       // Assert
       expect(result.success).toBe(true); // publishMessage returns PublishResult
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith('iot.xray', 'xray.raw', validData);
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        validData,
+        expect.anything()
+      );
     });
 
     it('should accept any data structure', async () => {
@@ -331,7 +347,12 @@ describe('ProducerService', () => {
 
       // Assert
       expect(result.success).toBe(true); // publishMessage returns PublishResult
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith('iot.xray', 'xray.raw', invalidData);
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        invalidData,
+        expect.anything()
+      );
     });
   });
 
@@ -351,7 +372,12 @@ describe('ProducerService', () => {
       await service.publishMessage(testData);
 
       // Assert
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith('iot.xray', 'xray.raw', testData);
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        testData,
+        expect.anything()
+      );
     });
 
     it('should handle missing configuration gracefully', async () => {

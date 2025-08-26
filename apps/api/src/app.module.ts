@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { SharedConfigModule, ConfigService } from '../../../libs/shared-config/src';
+import { CorrelationIdMiddleware } from '../../../libs/shared-utils/src';
 import { SignalsModule } from './signals/signals.module';
 import { HealthModule } from './health/health.module';
 
@@ -26,4 +27,8 @@ import { HealthModule } from './health/health.module';
     HealthModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

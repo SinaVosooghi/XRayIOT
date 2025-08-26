@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { TestDataGeneratorService } from './test-data-generator.service';
 import { LegacyXRayPayload } from './producer.types';
+import { v4 as uuidv4 } from 'uuid';
 import {
   PublishOptions,
   PublishResult,
@@ -49,9 +50,16 @@ export class ProducerService implements IProducerService {
     const startTime = Date.now();
     try {
       const exchange = options?.exchange || 'iot.xray';
-      const routingKey = options?.routingKey || 'xray.raw';
+      const routingKey = options?.routingKey || 'xray.raw.v1';
+      const correlationId = this.generateCorrelationId();
 
-      await this.amqpConnection.publish(exchange, routingKey, message);
+      await this.amqpConnection.publish(exchange, routingKey, message, {
+        headers: {
+          'x-correlation-id': correlationId,
+          'x-timestamp': new Date().toISOString(),
+          'x-service': 'producer',
+        },
+      });
 
       const publishTime = Date.now() - startTime;
       this.publishTimes.push(publishTime);
@@ -88,11 +96,18 @@ export class ProducerService implements IProducerService {
     };
 
     const exchange = options?.exchange || 'iot.xray';
-    const routingKey = options?.routingKey || 'xray.raw';
+    const routingKey = options?.routingKey || 'xray.raw.v1';
 
     for (const message of messages) {
       try {
-        await this.amqpConnection.publish(exchange, routingKey, message);
+        const correlationId = this.generateCorrelationId();
+        await this.amqpConnection.publish(exchange, routingKey, message, {
+          headers: {
+            'x-correlation-id': correlationId,
+            'x-timestamp': new Date().toISOString(),
+            'x-service': 'producer',
+          },
+        });
         result.successfulPublishes++;
         this.messagesSent++;
         this.lastMessageTime = new Date();
@@ -230,5 +245,9 @@ export class ProducerService implements IProducerService {
         continuousTesting: continuousTesting ? 'Stable' : 'Unstable',
       },
     };
+  }
+
+  private generateCorrelationId(): string {
+    return uuidv4();
   }
 }
