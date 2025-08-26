@@ -35,12 +35,20 @@ services:
       RABBITMQ_DEFAULT_VHOST: /
     volumes:
       - rabbit_data:/var/lib/rabbitmq
+      - ./config/rabbitmq-definitions.json:/etc/rabbitmq/definitions.json
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    command: >
+      sh -c "
+        rabbitmq-server &
+        sleep 10 &&
+        rabbitmqctl import_definitions /etc/rabbitmq/definitions.json &&
+        wait
+      "
 
   redis:
     image: redis:7
@@ -84,6 +92,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
 
   producer:
     build:

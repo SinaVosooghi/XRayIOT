@@ -1,0 +1,64 @@
+{
+  "exchanges": [
+    {
+      "name": "iot.xray",
+      "type": "topic",
+      "durable": true,
+      "arguments": {}
+    },
+    {
+      "name": "iot.xray.dlx",
+      "type": "direct",
+      "durable": true,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "xray.raw.v1",
+      "durable": true,
+      "arguments": {
+        "x-dead-letter-exchange": "iot.xray.dlx",
+        "x-dead-letter-routing-key": "xray.raw.v1.dlq",
+        "x-message-ttl": 3600000
+      }
+    },
+    {
+      "name": "xray.raw.v1.dlq",
+      "durable": true,
+      "arguments": {
+        "x-message-ttl": 604800000
+      }
+    },
+    {
+      "name": "xray.raw.v1.retry",
+      "durable": true,
+      "arguments": {
+        "x-dead-letter-exchange": "iot.xray",
+        "x-dead-letter-routing-key": "xray.raw.v1",
+        "x-message-ttl": 60000
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "iot.xray",
+      "destination": "xray.raw.v1",
+      "destination_type": "queue",
+      "routing_key": "xray.raw.v1"
+    },
+    {
+      "source": "iot.xray.dlx",
+      "destination": "xray.raw.v1.dlq",
+      "destination_type": "queue",
+      "routing_key": "xray.raw.v1.dlq"
+    },
+    {
+      "source": "iot.xray.dlx",
+      "destination": "xray.raw.v1.retry",
+      "destination_type": "queue",
+      "routing_key": "xray.raw.v1.retry"
+    }
+  ]
+}
+

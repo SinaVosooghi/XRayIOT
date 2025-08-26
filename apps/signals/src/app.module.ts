@@ -5,6 +5,7 @@ import { configSchema } from '../../../libs/shared-config/src/config.schema';
 import { XRayModule } from './xray/xray.module';
 import { RmqModule } from './rmq/rmq.module';
 import { RawModule } from './raw/raw.module';
+import { DlqModule } from './dlq/dlq.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RawModule } from './raw/raw.module';
     XRayModule,
     RmqModule,
     RawModule,
+    DlqModule,
   ],
 })
 export class AppModule {}

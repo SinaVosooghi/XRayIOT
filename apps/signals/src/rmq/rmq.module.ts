@@ -21,13 +21,14 @@ import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
               type: 'topic',
             },
             {
-              name: 'iot.dlx',
-              type: 'topic',
+              name: 'iot.xray.dlx',
+              type: 'direct',
             },
           ],
           uri,
           connectionInitOptions: { wait: false },
           enableControllerDiscovery: true,
+          prefetchCount: configService.get<number>('RABBITMQ_PREFETCH') || 10,
         };
       },
     }),
