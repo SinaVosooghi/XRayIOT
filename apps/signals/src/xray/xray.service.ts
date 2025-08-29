@@ -79,6 +79,8 @@ export class XRayService {
       stats,
       rawRef,
       location,
+      ingestedAt: new Date(), // Add ingestion timestamp
+      status: 'processed', // Add processing status
     });
   }
 

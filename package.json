@@ -32,7 +32,8 @@
     "infra:up": "docker-compose -f docker/docker-compose.infrastructure.yml up -d",
     "infra:down": "docker-compose -f docker/docker-compose.infrastructure.yml down",
     "infra:logs": "docker-compose -f docker/docker-compose.infrastructure.yml logs -f",
-    "script:create-indexes": "ts-node scripts/create-indexes.ts"
+    "script:create-indexes": "ts-node scripts/create-indexes.ts",
+    "script:test-indexes": "ts-node scripts/test-indexes.ts"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
