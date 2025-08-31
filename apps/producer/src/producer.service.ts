@@ -1,253 +1,185 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { TestDataGeneratorService } from './test-data-generator.service';
-import { LegacyXRayPayload } from './producer.types';
+import { ConfigService } from '@iotp/shared-config';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  PublishOptions,
-  PublishResult,
-  BatchPublishResult,
-  ContinuousTestingConfig,
-  ContinuousTestingStatus,
-  ProducerMetrics,
-  HealthCheckResult,
-  IProducerService,
-} from './producer.types';
+import { MessageValidator, XRayRawSignal } from '@iotp/shared-messaging';
 
 @Injectable()
-export class ProducerService implements IProducerService {
+export class ProducerService {
   private readonly logger = new Logger(ProducerService.name);
-  private isRunning = false;
-  private intervalId: ReturnType<typeof setInterval> | null = null;
-  private startTime?: Date;
-  private messagesSent = 0;
-  private errors = 0;
-  private lastError?: string;
-  private lastMessageTime?: Date;
-  private publishTimes: number[] = [];
 
   constructor(
     private readonly amqpConnection: AmqpConnection,
-    private readonly testDataGenerator: TestDataGeneratorService
+    private readonly configService: ConfigService
   ) {}
 
-  async sendTestData(): Promise<void> {
-    try {
-      const testData = this.testDataGenerator.generateOriginalFormat();
-      await this.publishMessage(testData);
-      this.logger.log('Test data sent successfully');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to send test data: ${errorMessage}`);
-      throw error;
-    }
+  private generateCorrelationId(): string {
+    return uuidv4();
   }
 
-  async publishMessage(
-    message: LegacyXRayPayload,
-    options?: Partial<PublishOptions>
-  ): Promise<PublishResult> {
-    const startTime = Date.now();
-    try {
-      const exchange = options?.exchange || 'iot.xray';
-      const routingKey = options?.routingKey || 'xray.raw.v1';
-      const correlationId = this.generateCorrelationId();
+  async publishMessage(payload: XRayRawSignal): Promise<void> {
+    // Validate payload against JSON Schema
+    const validation = MessageValidator.validateRawSignal(payload);
 
-      await this.amqpConnection.publish(exchange, routingKey, message, {
+    if (!validation.valid) {
+      this.logger.error('Message validation failed', {
+        errors: validation.errors,
+        payload: payload,
+      });
+      throw new Error(`Message validation failed: ${validation.errors?.join(', ')}`);
+    }
+
+    const correlationId = this.generateCorrelationId();
+
+    try {
+      await this.amqpConnection.publish('iot.xray', 'xray.raw.v1', payload, {
         headers: {
           'x-correlation-id': correlationId,
           'x-timestamp': new Date().toISOString(),
           'x-service': 'producer',
+          'x-schema-version': payload.schemaVersion || 'v1',
         },
       });
 
-      const publishTime = Date.now() - startTime;
-      this.publishTimes.push(publishTime);
-      this.messagesSent++;
-      this.lastMessageTime = new Date();
-
-      this.logger.log(`Message published to ${exchange} with routing key ${routingKey}`);
-
-      return {
-        success: true,
-        timestamp: Date.now(),
-        exchange,
-        routingKey,
-      };
+      this.logger.log('Message published successfully', {
+        deviceId: payload.deviceId,
+        correlationId,
+        schemaVersion: payload.schemaVersion,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to publish message: ${errorMessage}`);
-      this.errors++;
-      this.lastError = errorMessage;
-
+      this.logger.error('Failed to publish message', {
+        error: errorMessage,
+        deviceId: payload.deviceId,
+        correlationId,
+      });
       throw error;
     }
   }
 
-  async publishBatch(
-    messages: LegacyXRayPayload[],
-    options?: Partial<PublishOptions>
-  ): Promise<BatchPublishResult> {
-    const result: BatchPublishResult = {
-      totalMessages: messages.length,
-      successfulPublishes: 0,
-      failedPublishes: 0,
-      errors: [],
-    };
+  async publishBatch(payloads: XRayRawSignal[]): Promise<void> {
+    const correlationId = this.generateCorrelationId();
 
-    const exchange = options?.exchange || 'iot.xray';
-    const routingKey = options?.routingKey || 'xray.raw.v1';
+    this.logger.log('Publishing batch of messages', {
+      count: payloads.length,
+      correlationId,
+    });
 
-    for (const message of messages) {
-      try {
-        const correlationId = this.generateCorrelationId();
-        await this.amqpConnection.publish(exchange, routingKey, message, {
+    // Validate all payloads before publishing
+    const validationResults = payloads.map((payload, index) => ({
+      index,
+      payload,
+      validation: MessageValidator.validateRawSignal(payload),
+    }));
+
+    const invalidMessages = validationResults.filter(result => !result.validation.valid);
+
+    if (invalidMessages.length > 0) {
+      this.logger.error('Batch validation failed', {
+        total: payloads.length,
+        invalid: invalidMessages.length,
+        errors: invalidMessages.map(msg => ({
+          index: msg.index,
+          errors: msg.validation.errors,
+        })),
+      });
+      throw new Error(`Batch validation failed: ${invalidMessages.length} invalid messages`);
+    }
+
+    try {
+      const publishPromises = payloads.map(async (payload, index) => {
+        const messageCorrelationId = `${correlationId}-${index}`;
+
+        await this.amqpConnection.publish('iot.xray', 'xray.raw.v1', payload, {
           headers: {
-            'x-correlation-id': correlationId,
+            'x-correlation-id': messageCorrelationId,
             'x-timestamp': new Date().toISOString(),
             'x-service': 'producer',
+            'x-batch-id': correlationId,
+            'x-batch-index': index,
+            'x-schema-version': payload.schemaVersion || 'v1',
           },
         });
-        result.successfulPublishes++;
-        this.messagesSent++;
-        this.lastMessageTime = new Date();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        result.failedPublishes++;
-        result.errors.push({
-          message,
-          error: errorMessage,
-          timestamp: Date.now(),
-        });
-        this.errors++;
-        this.lastError = errorMessage;
-      }
-    }
-
-    this.logger.log(
-      `Published ${result.successfulPublishes}/${result.totalMessages} messages in batch`
-    );
-    return result;
-  }
-
-  startContinuousTesting(config?: Partial<ContinuousTestingConfig>): void {
-    if (this.isRunning) {
-      this.logger.warn('Continuous testing is already running');
-      return;
-    }
-
-    const intervalMs = config?.intervalMs || 10000;
-    this.isRunning = true;
-    this.startTime = new Date();
-    this.intervalId = setInterval(() => {
-      this.sendTestData().catch(error => {
-        this.logger.error('Error in continuous testing:', error);
-        this.errors++;
-        this.lastError = error instanceof Error ? error.message : 'Unknown error';
-
-        if (config?.stopOnError) {
-          this.stopContinuousTesting();
-        }
       });
-    }, intervalMs);
 
-    this.logger.log(`Started continuous testing with ${intervalMs}ms interval`);
-  }
+      await Promise.all(publishPromises);
 
-  stopContinuousTesting(): void {
-    if (!this.isRunning) {
-      this.logger.warn('Continuous testing is not running');
-      return;
-    }
-
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-
-    this.isRunning = false;
-    this.logger.log('Stopped continuous testing');
-  }
-
-  isContinuousTestingRunning(): boolean {
-    return this.isRunning;
-  }
-
-  async processBatch(messages: LegacyXRayPayload[]): Promise<void> {
-    try {
-      await this.publishBatch(messages);
-      this.logger.log(`Processed batch of ${messages.length} messages`);
+      this.logger.log('Batch published successfully', {
+        count: payloads.length,
+        correlationId,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to process batch: ${errorMessage}`);
+      this.logger.error('Failed to publish batch', {
+        error: errorMessage,
+        count: payloads.length,
+        correlationId,
+      });
       throw error;
     }
   }
 
-  getContinuousTestingStatus(): ContinuousTestingStatus {
-    return {
-      isRunning: this.isRunning,
-      startTime: this.startTime,
-      messagesSent: this.messagesSent,
-      errors: this.errors,
-      lastError: this.lastError,
-      lastMessageTime: this.lastMessageTime,
-      intervalId: this.intervalId,
-    };
-  }
-
-  getMetrics(): ProducerMetrics {
-    const averagePublishTime =
-      this.publishTimes.length > 0
-        ? this.publishTimes.reduce((sum, time) => sum + time, 0) / this.publishTimes.length
-        : 0;
-
-    return {
-      messagesPublished: this.messagesSent,
-      messagesFailed: this.errors,
-      averagePublishTime,
-      lastPublishTime: this.lastMessageTime,
-      uptime: this.startTime ? Date.now() - this.startTime.getTime() : 0,
-      errors: this.lastError
-        ? [
-            {
-              type: 'publish_error',
-              count: this.errors,
-              lastOccurrence: this.lastMessageTime || new Date(),
-            },
-          ]
-        : [],
-    };
-  }
-
-  getHealthCheck(): HealthCheckResult {
-    const amqpConnection = this.amqpConnection.connected;
-    const messagePublishing = this.messagesSent > 0 || this.errors === 0;
-    const continuousTesting = !this.isRunning || this.errors < 10;
-
-    const status =
-      amqpConnection && messagePublishing && continuousTesting
-        ? 'healthy'
-        : amqpConnection && messagePublishing
-          ? 'degraded'
-          : 'unhealthy';
-
-    return {
+  async publishDeviceStatus(
+    deviceId: string,
+    status: string,
+    health?: Record<string, unknown>
+  ): Promise<void> {
+    const payload = {
+      deviceId,
       status,
-      checks: {
-        amqpConnection,
-        messagePublishing,
-        continuousTesting,
-      },
-      details: {
-        amqpConnection: amqpConnection ? 'Connected' : 'Disconnected',
-        messagePublishing: messagePublishing ? 'Working' : 'Failing',
-        continuousTesting: continuousTesting ? 'Stable' : 'Unstable',
-      },
+      lastSeen: new Date().toISOString(),
+      health,
+      schemaVersion: 'v1' as const,
+      correlationId: this.generateCorrelationId(),
     };
+
+    // Validate device status payload
+    const validation = MessageValidator.validateDeviceStatus(payload);
+
+    if (!validation.valid) {
+      this.logger.error('Device status validation failed', {
+        errors: validation.errors,
+        payload,
+      });
+      throw new Error(`Device status validation failed: ${validation.errors?.join(', ')}`);
+    }
+
+    try {
+      await this.amqpConnection.publish('iot.xray', 'device.status.v1', payload, {
+        headers: {
+          'x-correlation-id': payload.correlationId,
+          'x-timestamp': new Date().toISOString(),
+          'x-service': 'producer',
+          'x-schema-version': payload.schemaVersion,
+        },
+      });
+
+      this.logger.log('Device status published successfully', {
+        deviceId,
+        status,
+        correlationId: payload.correlationId,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to publish device status', {
+        error: errorMessage,
+        deviceId,
+        status,
+      });
+      throw error;
+    }
   }
 
-  private generateCorrelationId(): string {
-    return uuidv4();
+  // Validation methods for testing
+  validateMessage(message: unknown): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateRawSignal(message);
+  }
+
+  validateRawSignal(message: unknown): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateRawSignal(message);
+  }
+
+  validateDeviceStatus(message: unknown): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateDeviceStatus(message);
   }
 }

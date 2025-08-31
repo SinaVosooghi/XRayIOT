@@ -14,9 +14,9 @@ export interface LegacyPayload {
   };
 }
 
+export * from './topology';
 export * from './schemas/xray.schema';
 export * from './validators/ajv';
-export * from './rmq/topology';
 
 export function normalizeXRayPayload(input: LegacyPayload): GenericPayload {
   // If already normalized

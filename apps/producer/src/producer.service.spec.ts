@@ -1,480 +1,275 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProducerService } from './producer.service';
-import { TestDataGeneratorService } from './test-data-generator.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { ConfigService } from '@nestjs/config';
-import { LegacyXRayPayload } from './producer.types';
+import { ConfigService } from '@iotp/shared-config';
+import { XRayRawSignal } from '@iotp/shared-messaging';
 
 describe('ProducerService', () => {
   let service: ProducerService;
-  const mockTestDataGenerator = {
-    generateOriginalFormat: jest.fn(),
-    generateDifferentDeviceFormat: jest.fn(),
-    generateMultipleDataPoints: jest.fn(),
-    generateSingleDataPoint: jest.fn(),
-    generateHighPrecisionData: jest.fn(),
-    generateEdgeCaseSmallValues: jest.fn(),
-    generateEdgeCaseLargeValues: jest.fn(),
-    generateDifferentTimestampFormat: jest.fn(),
-    generateAllTestFormats: jest.fn(),
-    generateRandomTestData: jest.fn(),
+  let mockAmqpConnection: jest.Mocked<AmqpConnection>;
+
+  const mockValidPayload: XRayRawSignal = {
+    deviceId: 'test-device-001',
+    capturedAt: new Date().toISOString(),
+    payload: 'base64-encoded-payload',
+    schemaVersion: 'v1',
+    metadata: {
+      location: {
+        latitude: 40.7128,
+        longitude: -74.0060,
+        altitude: 10,
+      },
+      battery: 85,
+      signalStrength: -65,
+    },
   };
 
-  const mockAmqpConnection = {
-    publish: jest.fn(),
-  };
-
-  const mockConfigService = {
-    get: jest.fn(),
+  const mockInvalidPayload = {
+    deviceId: '', // Invalid: empty string
+    // Missing required fields: capturedAt, payload, schemaVersion
+    metadata: {
+      location: {
+        latitude: 200, // Invalid: out of range
+        longitude: 200, // Invalid: out of range
+      },
+    },
   };
 
   beforeEach(async () => {
+    const mockAmqpConnectionProvider = {
+      provide: AmqpConnection,
+      useValue: {
+        publish: jest.fn(),
+        connected: true,
+      },
+    };
+
+    const mockConfigServiceProvider = {
+      provide: ConfigService,
+      useValue: {
+        get: jest.fn(),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ProducerService,
-        {
-          provide: TestDataGeneratorService,
-          useValue: mockTestDataGenerator,
-        },
-        {
-          provide: AmqpConnection,
-          useValue: mockAmqpConnection,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
+      providers: [ProducerService, mockAmqpConnectionProvider, mockConfigServiceProvider],
     }).compile();
 
     service = module.get<ProducerService>(ProducerService);
+    mockAmqpConnection = module.get(AmqpConnection);
+  });
 
-    // Reset all mocks
-    jest.clearAllMocks();
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
-    // Mock configuration
-    mockConfigService.get.mockImplementation((key: string) => {
-      switch (key) {
-        case 'RABBITMQ_EXCHANGE':
-          return 'iot.xray';
-        case 'RABBITMQ_ROUTING_KEY':
-          return 'xray.raw.v1';
-        default:
-          return undefined;
+  describe('publishMessage', () => {
+    it('should publish a valid message successfully', async () => {
+      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+
+      await service.publishMessage(mockValidPayload);
+
+      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
+        'iot.xray',
+        'xray.raw.v1',
+        mockValidPayload,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-correlation-id': expect.any(String),
+            'x-timestamp': expect.any(String),
+            'x-service': 'producer',
+            'x-schema-version': 'v1',
+          }),
+        })
+      );
+    });
+
+    it('should reject invalid messages', async () => {
+      await expect(service.publishMessage(mockInvalidPayload as XRayRawSignal)).rejects.toThrow(
+        'Message validation failed'
+      );
+
+      expect(mockAmqpConnection.publish).not.toHaveBeenCalled();
+    });
+
+    it('should handle publishing errors', async () => {
+      const error = new Error('Connection failed');
+      mockAmqpConnection.publish.mockRejectedValue(error);
+
+      await expect(service.publishMessage(mockValidPayload)).rejects.toThrow('Connection failed');
+
+      expect(mockAmqpConnection.publish).toHaveBeenCalled();
+    });
+
+    it('should generate unique correlation IDs for each message', async () => {
+      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+
+      await service.publishMessage(mockValidPayload);
+      await service.publishMessage(mockValidPayload);
+
+      const calls = mockAmqpConnection.publish.mock.calls;
+      const correlationId1 = calls[0]?.[3]?.headers?.['x-correlation-id'];
+      const correlationId2 = calls[1]?.[3]?.headers?.['x-correlation-id'];
+
+      expect(correlationId1).toBeDefined();
+      expect(correlationId2).toBeDefined();
+      expect(correlationId1).not.toBe(correlationId2);
+    });
+  });
+
+  describe('publishBatch', () => {
+    const mockBatchPayloads: XRayRawSignal[] = [
+      { ...mockValidPayload, deviceId: 'device-1' },
+      { ...mockValidPayload, deviceId: 'device-2' },
+      { ...mockValidPayload, deviceId: 'device-3' },
+    ];
+
+    it('should publish a batch of valid messages successfully', async () => {
+      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+
+      await service.publishBatch(mockBatchPayloads);
+
+      expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(3);
+      
+      // Check that each message has a unique correlation ID
+      const calls = mockAmqpConnection.publish.mock.calls;
+      const correlationIds = calls.map(call => call[3]?.headers?.['x-correlation-id']).filter(Boolean);
+      const uniqueIds = new Set(correlationIds);
+      
+      expect(uniqueIds.size).toBe(3);
+    });
+
+    it('should reject batch with invalid messages', async () => {
+      const invalidBatch = [
+        mockValidPayload,
+        mockInvalidPayload as XRayRawSignal,
+        mockValidPayload,
+      ];
+
+      await expect(service.publishBatch(invalidBatch)).rejects.toThrow(
+        'Batch validation failed: 1 invalid messages'
+      );
+
+      expect(mockAmqpConnection.publish).not.toHaveBeenCalled();
+    });
+
+    it('should handle batch publishing errors', async () => {
+      mockAmqpConnection.publish.mockRejectedValue(new Error('Batch failed'));
+
+      await expect(service.publishBatch(mockBatchPayloads)).rejects.toThrow('Batch failed');
+    });
+
+    it('should include batch metadata in headers', async () => {
+      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+
+      await service.publishBatch(mockBatchPayloads);
+
+      const calls = mockAmqpConnection.publish.mock.calls;
+      const firstCall = calls[0];
+      
+      if (firstCall?.[3]?.headers) {
+        expect(firstCall[3].headers).toHaveProperty('x-batch-id');
+        expect(firstCall[3].headers).toHaveProperty('x-batch-index');
+        expect(firstCall[3].headers['x-batch-index']).toBe(0);
       }
     });
   });
 
-  describe('sendXRayData', () => {
-    it('should send X-Ray data to RabbitMQ successfully', async () => {
-      // Arrange
-      const testData: LegacyXRayPayload = {
-        'test-device-001': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
+  describe('publishDeviceStatus', () => {
+    it('should publish device status successfully', async () => {
+      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
 
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
+      const deviceId = 'test-device-001';
+      const status = 'online';
+      const health = { battery: 90, signalStrength: -60 };
 
-      // Act
-      const result = await service.publishMessage(testData);
+      await service.publishDeviceStatus(deviceId, status, health);
 
-      // Assert
-      expect(result.success).toBe(true);
       expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
         'iot.xray',
-        'xray.raw.v1',
-        testData,
-        expect.anything()
+        'device.status.v1',
+        expect.objectContaining({
+          deviceId,
+          status,
+          health,
+          schemaVersion: 'v1',
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-correlation-id': expect.any(String),
+            'x-timestamp': expect.any(String),
+            'x-service': 'producer',
+            'x-schema-version': 'v1',
+          }),
+        })
       );
     });
 
-    it('should handle RabbitMQ publishing errors gracefully', async () => {
-      // Arrange
-      const testData: LegacyXRayPayload = {
-        'test-device-001': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
+    it('should reject invalid device status', async () => {
+      const invalidStatus = 'invalid-status' as any;
 
-      mockAmqpConnection.publish.mockRejectedValue(new Error('Connection failed'));
+      await expect(service.publishDeviceStatus('device-1', invalidStatus)).rejects.toThrow(
+        'Device status validation failed'
+      );
 
-      // Act & Assert
-      await expect(service.publishMessage(testData)).rejects.toThrow('Connection failed');
-    });
-
-    it('should validate data format before sending', async () => {
-      // Arrange
-      const invalidData = {
-        invalidField: 'invalid value',
-      };
-
-      // Act & Assert
-      await expect(
-        service.publishMessage(invalidData as unknown as LegacyXRayPayload)
-      ).rejects.toThrow();
+      expect(mockAmqpConnection.publish).not.toHaveBeenCalled();
     });
   });
 
-  describe('sendTestData', () => {
-    it('should send test data successfully', async () => {
-      // Arrange
-      const mockTestData = { 'test-device': { data: [], time: Date.now() } };
-      mockTestDataGenerator.generateOriginalFormat.mockReturnValue(mockTestData);
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
+  describe('validation methods', () => {
+    it('should validate raw signals correctly', () => {
+      const validResult = service.validateRawSignal(mockValidPayload);
+      expect(validResult.valid).toBe(true);
 
-      // Act
-      const result = await service.sendTestData();
+      const invalidResult = service.validateRawSignal(mockInvalidPayload);
+      expect(invalidResult.valid).toBe(false);
+      expect(invalidResult.errors).toBeDefined();
+    });
 
-      // Assert
-      expect(result).toBeUndefined(); // sendTestData returns void
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
-        'iot.xray',
-        'xray.raw.v1',
-        mockTestData,
-        expect.anything()
-      );
+    it('should validate device status correctly', () => {
+      const validStatus = {
+        deviceId: 'device-1',
+        status: 'online',
+        lastSeen: new Date().toISOString(),
+      };
+
+      const validResult = service.validateDeviceStatus(validStatus);
+      expect(validResult.valid).toBe(true);
+
+      const invalidStatus = {
+        deviceId: 'device-1',
+        // Missing required fields
+      };
+
+      const invalidResult = service.validateDeviceStatus(invalidStatus);
+      expect(invalidResult.valid).toBe(false);
+    });
+
+    it('should validate generic messages', () => {
+      const result = service.validateMessage(mockValidPayload);
+      expect(result.valid).toBe(true);
     });
   });
 
-  describe('testAllDataFormats', () => {
-    it('should test all data formats successfully', async () => {
-      // Arrange
-      const mockFormats = [
-        { name: 'Original Format', data: { 'device-1': { data: [], time: Date.now() } } },
-        { name: 'Different Device Format', data: { 'device-2': { data: [], time: Date.now() } } },
-        { name: 'Multiple Data Points', data: { 'device-3': { data: [], time: Date.now() } } },
-        { name: 'Single Data Point', data: { 'device-4': { data: [], time: Date.now() } } },
-        { name: 'High Precision Data', data: { 'device-5': { data: [], time: Date.now() } } },
-        { name: 'Edge Case Small Values', data: { 'device-6': { data: [], time: Date.now() } } },
-        { name: 'Edge Case Large Values', data: { 'device-7': { data: [], time: Date.now() } } },
-        {
-          name: 'Different Timestamp Format',
-          data: { 'device-8': { data: [], time: Date.now() } },
-        },
-      ];
+  describe('error handling', () => {
+    it('should handle unknown error types gracefully', async () => {
+      const unknownError = 'String error';
+      mockAmqpConnection.publish.mockRejectedValue(unknownError);
 
-      mockTestDataGenerator.generateAllTestFormats.mockReturnValue(mockFormats);
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishBatch(
-        mockFormats.map(f => f.data as unknown as LegacyXRayPayload)
-      );
-
-      // Assert
-      expect(result.totalMessages).toBe(8);
-      expect(result.successfulPublishes).toBe(8);
-      expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(8);
+      await expect(service.publishMessage(mockValidPayload)).rejects.toThrow('String error');
     });
 
-    it('should handle individual format failures gracefully', async () => {
-      // Arrange
-      const mockFormats = [
-        { name: 'Original Format', data: { 'device-1': { data: [], time: Date.now() } } },
-        { name: 'Failing Format', data: { 'device-2': { data: [], time: Date.now() } } },
-      ];
+    it('should log validation errors with details', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      mockTestDataGenerator.generateAllTestFormats.mockReturnValue(mockFormats);
-      mockAmqpConnection.publish
-        .mockResolvedValueOnce(undefined) // First call succeeds
-        .mockRejectedValueOnce(new Error('Publishing failed')); // Second call fails
+      try {
+        await service.publishMessage(mockInvalidPayload as XRayRawSignal);
+      } catch (error) {
+        // Expected to fail
+      }
 
-      // Act
-      const result = await service.publishBatch(
-        mockFormats.map(f => f.data as unknown as LegacyXRayPayload)
-      );
-
-      // Assert
-      expect(result.totalMessages).toBe(2);
-      expect(result.successfulPublishes).toBe(1);
-      expect(result.failedPublishes).toBe(1);
-      expect(result.errors[0].error).toBe('Publishing failed');
-    });
-  });
-
-  describe('testRandomData', () => {
-    it('should send random test data successfully', async () => {
-      // Arrange
-      const mockRandomData: LegacyXRayPayload = {
-        'random-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockTestDataGenerator.generateRandomTestData.mockReturnValue(mockRandomData);
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishMessage(mockRandomData);
-
-      // Assert
-      expect(result.success).toBe(true);
-      // Note: publishMessage doesn't call generateRandomTestData, it just publishes the data
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
-        'iot.xray',
-        'xray.raw.v1',
-        mockRandomData,
-        expect.anything()
-      );
-    });
-
-    it('should handle random data generation errors gracefully', async () => {
-      // Arrange
-      const mockRandomData: LegacyXRayPayload = {
-        'random-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockTestDataGenerator.generateRandomTestData.mockImplementation(() => {
-        throw new Error('Random data generation failed');
-      });
-
-      // Act & Assert
-      const result = await service.publishMessage(mockRandomData);
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('testEdgeCases', () => {
-    it('should test edge cases successfully', async () => {
-      // Arrange
-      const mockEdgeCases = [
-        { name: 'Empty Data Array', data: { 'edge-device-1': { data: [], time: Date.now() } } },
-        {
-          name: 'Null Coordinates',
-          data: {
-            'edge-device-2': {
-              data: [
-                {
-                  timestamp: 1000,
-                  lat: null as unknown as number,
-                  lon: null as unknown as number,
-                  speed: null as unknown as number,
-                },
-              ],
-              time: Date.now(),
-            },
-          },
-        },
-        {
-          name: 'Large Values',
-          data: {
-            'edge-device-3': {
-              data: [{ timestamp: 1000, lat: 999999, lon: 999999, speed: 999999 }],
-              time: Date.now(),
-            },
-          },
-        },
-      ];
-
-      mockTestDataGenerator.generateEdgeCaseSmallValues.mockReturnValue(mockEdgeCases[0]);
-      mockTestDataGenerator.generateEdgeCaseLargeValues.mockReturnValue(mockEdgeCases[2]);
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishBatch(
-        mockEdgeCases.map(edge => edge.data as unknown as LegacyXRayPayload)
-      );
-
-      // Assert
-      expect(result.totalMessages).toBe(3); // 3 edge cases defined in the test
-      expect(result.successfulPublishes).toBe(3);
-      expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  describe('data validation', () => {
-    it('should validate device ID format', async () => {
-      // Arrange
-      const validData = {
-        'valid-device-001': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishMessage(validData);
-
-      // Assert
-      expect(result.success).toBe(true); // publishMessage returns PublishResult
-    });
-
-    it('should validate data structure', async () => {
-      // Arrange
-      const validData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishMessage(validData);
-
-      // Assert
-      expect(result.success).toBe(true); // publishMessage returns PublishResult
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
-        'iot.xray',
-        'xray.raw.v1',
-        validData,
-        expect.anything()
-      );
-    });
-
-    it('should accept any data structure', async () => {
-      // Arrange
-      const invalidData = {
-        'test-device': {
-          invalidField: 'invalid value',
-        },
-      };
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishMessage(invalidData as unknown as LegacyXRayPayload);
-
-      // Assert
-      expect(result.success).toBe(true); // publishMessage returns PublishResult
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
-        'iot.xray',
-        'xray.raw.v1',
-        invalidData,
-        expect.anything()
-      );
-    });
-  });
-
-  describe('configuration handling', () => {
-    it('should use correct RabbitMQ exchange and routing key', async () => {
-      // Arrange
-      const testData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      await service.publishMessage(testData);
-
-      // Assert
-      expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
-        'iot.xray',
-        'xray.raw.v1',
-        testData,
-        expect.anything()
-      );
-    });
-
-    it('should handle missing configuration gracefully', async () => {
-      // Arrange
-      mockConfigService.get.mockReturnValue(undefined);
-
-      const testData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      // Act
-      const result = await service.publishMessage(testData);
-
-      // Assert
-      expect(result.success).toBe(true); // publishMessage returns PublishResult
-    });
-  });
-
-  describe('error handling and recovery', () => {
-    it('should handle temporary failures gracefully', async () => {
-      // Arrange
-      const testData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      // First call fails
-      mockAmqpConnection.publish.mockRejectedValueOnce(new Error('Temporary failure'));
-
-      // Act & Assert
-      await expect(service.publishMessage(testData)).rejects.toThrow('Temporary failure');
-      expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle network timeouts gracefully', async () => {
-      // Arrange
-      const testData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockAmqpConnection.publish.mockRejectedValue(new Error('Network timeout'));
-
-      // Act & Assert
-      await expect(service.publishMessage(testData)).rejects.toThrow('Network timeout');
-    });
-  });
-
-  describe('performance and scalability', () => {
-    it('should handle high-volume data sending', async () => {
-      // Arrange
-      const highVolumeData = Array(100)
-        .fill(null)
-        .map((_, index) => ({
-          [`device-${index}`]: {
-            data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-            time: Date.now(),
-          },
-        }));
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const promises = highVolumeData.map(data => service.publishMessage(data));
-      const results = await Promise.all(promises);
-
-      // Assert
-      expect(results.every(r => r.success === true)).toBe(true);
-      expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(100);
-    });
-
-    it('should maintain performance under load', async () => {
-      // Arrange
-      const startTime = Date.now();
-      const testData: LegacyXRayPayload = {
-        'test-device': {
-          data: [{ timestamp: 1000, lat: 51.339764, lon: 12.339223, speed: 1.2038 }],
-          time: Date.now(),
-        },
-      };
-
-      mockAmqpConnection.publish.mockResolvedValue(undefined);
-
-      // Act
-      const result = await service.publishMessage(testData);
-      const endTime = Date.now();
-
-      // Assert
-      expect(result.success).toBe(true); // publishMessage returns PublishResult
-      expect(endTime - startTime).toBeLessThan(1000); // Should complete within 1 second
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
   });
 });
