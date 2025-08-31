@@ -9,7 +9,7 @@ export class TestController {
 
   constructor(
     private readonly producerService: ProducerService,
-    private readonly testDataGenerator: TestDataGeneratorService,
+    private readonly testDataGenerator: TestDataGeneratorService
   ) {}
 
   @Post('send-message')
@@ -17,7 +17,7 @@ export class TestController {
     try {
       const testData = this.testDataGenerator.generateRawSignal();
       await this.producerService.publishMessage(testData);
-      
+
       this.logger.log('Test message sent successfully', {
         deviceId: testData.deviceId,
         schemaVersion: testData.schemaVersion,
@@ -34,11 +34,13 @@ export class TestController {
   }
 
   @Post('send-batch')
-  async sendTestBatch(@Query('count') count: number = 5): Promise<{ success: boolean; message: string }> {
+  async sendTestBatch(
+    @Query('count') count: number = 5
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const testData = this.testDataGenerator.generateRawSignals(count);
       await this.producerService.publishBatch(testData);
-      
+
       this.logger.log('Test batch sent successfully', {
         count: testData.length,
         deviceIds: testData.map(d => d.deviceId),
@@ -55,14 +57,16 @@ export class TestController {
   }
 
   @Post('send-device-status')
-  async sendDeviceStatus(@Body() statusData: { deviceId: string; status: string; health?: any }): Promise<{ success: boolean; message: string }> {
+  async sendDeviceStatus(
+    @Body() statusData: { deviceId: string; status: string; health?: any }
+  ): Promise<{ success: boolean; message: string }> {
     try {
       await this.producerService.publishDeviceStatus(
         statusData.deviceId,
         statusData.status,
         statusData.health
       );
-      
+
       this.logger.log('Device status sent successfully', {
         deviceId: statusData.deviceId,
         status: statusData.status,
@@ -73,7 +77,10 @@ export class TestController {
         message: `Device status sent for ${statusData.deviceId}`,
       };
     } catch (error) {
-      this.logger.error('Failed to send device status', { error: error.message, deviceId: statusData.deviceId });
+      this.logger.error('Failed to send device status', {
+        error: error.message,
+        deviceId: statusData.deviceId,
+      });
       throw error;
     }
   }
@@ -87,7 +94,7 @@ export class TestController {
         testStatus.status,
         testStatus.health
       );
-      
+
       this.logger.log('Random device status sent successfully', {
         deviceId: testStatus.deviceId,
         status: testStatus.status,
@@ -104,10 +111,12 @@ export class TestController {
   }
 
   @Post('validate-message')
-  async validateMessage(@Body() message: any): Promise<{ valid: boolean; errors?: string[]; message: string }> {
+  async validateMessage(
+    @Body() message: any
+  ): Promise<{ valid: boolean; errors?: string[]; message: string }> {
     try {
       const validation = await this.producerService.validateMessage(message);
-      
+
       if (validation.valid) {
         return {
           valid: true,
@@ -127,30 +136,33 @@ export class TestController {
   }
 
   @Get('generate-test-data')
-  async generateTestData(@Query('type') type: string = 'raw', @Query('count') count: number = 1): Promise<any> {
+  async generateTestData(
+    @Query('type') type: string = 'raw',
+    @Query('count') count: number = 1
+  ): Promise<any> {
     try {
       switch (type) {
         case 'raw':
-          return count === 1 
+          return count === 1
             ? this.testDataGenerator.generateRawSignal()
             : this.testDataGenerator.generateRawSignals(count);
-        
+
         case 'processed':
-          return count === 1 
+          return count === 1
             ? this.testDataGenerator.generateProcessedSignal()
             : this.testDataGenerator.generateProcessedSignals(count);
-        
+
         case 'status':
-          return count === 1 
+          return count === 1
             ? this.testDataGenerator.generateDeviceStatus()
             : this.testDataGenerator.generateDeviceStatuses(count);
-        
+
         case 'invalid':
           return this.testDataGenerator.generateInvalidRawSignal();
-        
+
         case 'edge-case':
           return this.testDataGenerator.generateEdgeCaseRawSignal();
-        
+
         default:
           return {
             error: 'Invalid type. Use: raw, processed, status, invalid, or edge-case',
@@ -190,7 +202,7 @@ export class TestController {
       ];
 
       const results = await Promise.all(
-        testCases.map(async (testCase) => {
+        testCases.map(async testCase => {
           try {
             let validation;
             if (testCase.name.includes('Raw Signal')) {

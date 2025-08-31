@@ -1,43 +1,34 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@iotp/shared-config';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
-import { configSchema } from '../../../libs/shared-config/src/config.schema';
-
 import { ProducerService } from './producer.service';
-import { TestDataGeneratorService } from './test-data-generator.service';
 import { TestController } from './test.controller';
+import { TestDataGeneratorService } from './test-data-generator.service';
+import { HmacAuthService, NonceTrackerService } from '@iotp/shared-utils';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      validationSchema: configSchema,
-      validationOptions: { abortEarly: true },
-    }),
-    RabbitMQModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const uri = configService.get<string>('RABBITMQ_URI');
-        if (!uri) {
-          throw new Error('RABBITMQ_URI environment variable is required');
-        }
-
-        return {
-          exchanges: [
-            {
-              name: configService.get<string>('RABBITMQ_EXCHANGE') || 'iot.xray',
-              type: 'topic',
-            },
-          ],
-          uri,
-          connectionInitOptions: { wait: false },
-          enableControllerDiscovery: true,
-        };
-      },
+    ConfigModule,
+    RabbitMQModule.forRootAsync(RabbitMQModule, {
+      useFactory: () => ({
+        exchanges: [
+          {
+            name: 'iot.xray',
+            type: 'topic',
+          },
+        ],
+        uri: process.env.RABBITMQ_URI || 'amqp://admin:password@localhost:5672',
+        connectionInitOptions: { wait: false },
+        enableControllerDiscovery: true,
+      }),
     }),
   ],
   controllers: [TestController],
-  providers: [ProducerService, TestDataGeneratorService],
+  providers: [
+    ProducerService,
+    TestDataGeneratorService,
+    HmacAuthService,
+    NonceTrackerService,
+  ],
 })
 export class AppModule {}

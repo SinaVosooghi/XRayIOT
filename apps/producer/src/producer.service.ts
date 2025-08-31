@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@iotp/shared-config';
+import { XRayRawSignal, DeviceStatusUpdate, MessageValidator } from '@iotp/shared-messaging';
+import { HmacAuthService, HmacSignature } from '@iotp/shared-utils';
 import { v4 as uuidv4 } from 'uuid';
-import { MessageValidator, XRayRawSignal } from '@iotp/shared-messaging';
 
 @Injectable()
 export class ProducerService {
@@ -10,7 +11,8 @@ export class ProducerService {
 
   constructor(
     private readonly amqpConnection: AmqpConnection,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly hmacAuthService: HmacAuthService
   ) {}
 
   private generateCorrelationId(): string {
@@ -32,19 +34,34 @@ export class ProducerService {
     const correlationId = this.generateCorrelationId();
 
     try {
+      // Generate HMAC signature for the message
+      const hmacSignature = this.hmacAuthService.generateSignature(
+        payload.deviceId,
+        JSON.stringify(payload),
+        payload.capturedAt
+      );
+
       await this.amqpConnection.publish('iot.xray', 'xray.raw.v1', payload, {
         headers: {
           'x-correlation-id': correlationId,
           'x-timestamp': new Date().toISOString(),
           'x-service': 'producer',
           'x-schema-version': payload.schemaVersion || 'v1',
+          // HMAC authentication headers
+          'x-device-id': payload.deviceId,
+          'x-hmac-signature': hmacSignature.signature,
+          'x-timestamp-auth': hmacSignature.timestamp,
+          'x-nonce': hmacSignature.nonce,
+          'x-algorithm': hmacSignature.algorithm,
         },
       });
 
-      this.logger.log('Message published successfully', {
+      this.logger.log('Message published successfully with HMAC authentication', {
         deviceId: payload.deviceId,
         correlationId,
         schemaVersion: payload.schemaVersion,
+        hmacAlgorithm: hmacSignature.algorithm,
+        nonce: hmacSignature.nonce,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -60,53 +77,45 @@ export class ProducerService {
   async publishBatch(payloads: XRayRawSignal[]): Promise<void> {
     const correlationId = this.generateCorrelationId();
 
-    this.logger.log('Publishing batch of messages', {
-      count: payloads.length,
-      correlationId,
-    });
-
-    // Validate all payloads before publishing
-    const validationResults = payloads.map((payload, index) => ({
-      index,
-      payload,
-      validation: MessageValidator.validateRawSignal(payload),
-    }));
-
-    const invalidMessages = validationResults.filter(result => !result.validation.valid);
-
-    if (invalidMessages.length > 0) {
-      this.logger.error('Batch validation failed', {
-        total: payloads.length,
-        invalid: invalidMessages.length,
-        errors: invalidMessages.map(msg => ({
-          index: msg.index,
-          errors: msg.validation.errors,
-        })),
-      });
-      throw new Error(`Batch validation failed: ${invalidMessages.length} invalid messages`);
+    // Validate all payloads first
+    for (const payload of payloads) {
+      const validation = MessageValidator.validateRawSignal(payload);
+      if (!validation.valid) {
+        throw new Error(`Batch validation failed for device ${payload.deviceId}: ${validation.errors?.join(', ')}`);
+      }
     }
 
     try {
-      const publishPromises = payloads.map(async (payload, index) => {
-        const messageCorrelationId = `${correlationId}-${index}`;
+      // Publish each message with HMAC authentication
+      const publishPromises = payloads.map(async (payload) => {
+        const hmacSignature = this.hmacAuthService.generateSignature(
+          payload.deviceId,
+          JSON.stringify(payload),
+          payload.capturedAt
+        );
 
-        await this.amqpConnection.publish('iot.xray', 'xray.raw.v1', payload, {
+        return this.amqpConnection.publish('iot.xray', 'xray.raw.v1', payload, {
           headers: {
-            'x-correlation-id': messageCorrelationId,
+            'x-correlation-id': correlationId,
             'x-timestamp': new Date().toISOString(),
             'x-service': 'producer',
-            'x-batch-id': correlationId,
-            'x-batch-index': index,
             'x-schema-version': payload.schemaVersion || 'v1',
+            // HMAC authentication headers
+            'x-device-id': payload.deviceId,
+            'x-hmac-signature': hmacSignature.signature,
+            'x-timestamp-auth': hmacSignature.timestamp,
+            'x-nonce': hmacSignature.nonce,
+            'x-algorithm': hmacSignature.algorithm,
           },
         });
       });
 
       await Promise.all(publishPromises);
 
-      this.logger.log('Batch published successfully', {
+      this.logger.log('Batch published successfully with HMAC authentication', {
         count: payloads.length,
         correlationId,
+        deviceIds: payloads.map(p => p.deviceId),
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -121,43 +130,53 @@ export class ProducerService {
 
   async publishDeviceStatus(
     deviceId: string,
-    status: string,
+    status: 'online' | 'offline' | 'error' | 'maintenance',
     health?: Record<string, unknown>
   ): Promise<void> {
-    const payload = {
+    const deviceStatus: DeviceStatusUpdate = {
       deviceId,
       status,
       lastSeen: new Date().toISOString(),
       health,
-      schemaVersion: 'v1' as const,
       correlationId: this.generateCorrelationId(),
     };
 
-    // Validate device status payload
-    const validation = MessageValidator.validateDeviceStatus(payload);
-
+    // Validate device status
+    const validation = MessageValidator.validateDeviceStatus(deviceStatus);
     if (!validation.valid) {
-      this.logger.error('Device status validation failed', {
-        errors: validation.errors,
-        payload,
-      });
       throw new Error(`Device status validation failed: ${validation.errors?.join(', ')}`);
     }
 
+    const correlationId = this.generateCorrelationId();
+
     try {
-      await this.amqpConnection.publish('iot.xray', 'device.status.v1', payload, {
+      // Generate HMAC signature for device status
+      const hmacSignature = this.hmacAuthService.generateSignature(
+        deviceId,
+        JSON.stringify(deviceStatus)
+      );
+
+      await this.amqpConnection.publish('iot.xray', 'device.status.v1', deviceStatus, {
         headers: {
-          'x-correlation-id': payload.correlationId,
+          'x-correlation-id': correlationId,
           'x-timestamp': new Date().toISOString(),
           'x-service': 'producer',
-          'x-schema-version': payload.schemaVersion,
+          'x-schema-version': 'v1',
+          // HMAC authentication headers
+          'x-device-id': deviceId,
+          'x-hmac-signature': hmacSignature.signature,
+          'x-timestamp-auth': hmacSignature.timestamp,
+          'x-nonce': hmacSignature.nonce,
+          'x-algorithm': hmacSignature.algorithm,
         },
       });
 
-      this.logger.log('Device status published successfully', {
+      this.logger.log('Device status published successfully with HMAC authentication', {
         deviceId,
         status,
-        correlationId: payload.correlationId,
+        correlationId,
+        hmacAlgorithm: hmacSignature.algorithm,
+        nonce: hmacSignature.nonce,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -165,21 +184,32 @@ export class ProducerService {
         error: errorMessage,
         deviceId,
         status,
+        correlationId,
       });
       throw error;
     }
   }
 
   // Validation methods for testing
-  validateMessage(message: unknown): { valid: boolean; errors?: string[] } {
-    return MessageValidator.validateRawSignal(message);
+  validateMessage(payload: XRayRawSignal): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateRawSignal(payload);
   }
 
-  validateRawSignal(message: unknown): { valid: boolean; errors?: string[] } {
-    return MessageValidator.validateRawSignal(message);
+  validateRawSignal(payload: XRayRawSignal): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateRawSignal(payload);
   }
 
-  validateDeviceStatus(message: unknown): { valid: boolean; errors?: string[] } {
-    return MessageValidator.validateDeviceStatus(message);
+  validateDeviceStatus(payload: DeviceStatusUpdate): { valid: boolean; errors?: string[] } {
+    return MessageValidator.validateDeviceStatus(payload);
+  }
+
+  // HMAC signature generation for testing
+  generateHmacSignature(deviceId: string, payload: string): HmacSignature {
+    return this.hmacAuthService.generateSignature(deviceId, payload);
+  }
+
+  // Get HMAC configuration for testing
+  getHmacConfig() {
+    return this.hmacAuthService.getConfig();
   }
 }

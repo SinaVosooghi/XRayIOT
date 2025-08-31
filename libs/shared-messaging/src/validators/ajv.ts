@@ -8,7 +8,7 @@ const ajv = new Ajv({
   verbose: true,
   strict: false,
   useDefaults: true,
-  coerceTypes: true
+  coerceTypes: true,
 });
 
 // Add format validators (date-time, uuid, etc.)
@@ -31,21 +31,20 @@ export class MessageValidator {
    */
   static validate<T = any>(schemaKey: string, data: T): { valid: boolean; errors?: string[] } {
     const validator = validators[schemaKey];
-    
+
     if (!validator) {
       return {
         valid: false,
-        errors: [`Schema '${schemaKey}' not found`]
+        errors: [`Schema '${schemaKey}' not found`],
       };
     }
 
     const valid = validator(data);
-    
+
     if (!valid) {
-      const errors = validator.errors?.map(error => 
-        `${error.instancePath} ${error.message}`.trim()
-      ) || [];
-      
+      const errors =
+        validator.errors?.map(error => `${error.instancePath} ${error.message}`.trim()) || [];
+
       return { valid: false, errors };
     }
 
@@ -91,7 +90,7 @@ export class MessageValidator {
    * Get schema by key
    */
   static getSchema(schemaKey: string) {
-    return schemas[schemaKey];
+    return schemas[schemaKey as keyof typeof schemas];
   }
 }
 

@@ -14,7 +14,7 @@ export interface LegacyPayload {
   };
 }
 
-export * from './topology';
+export * from './rmq/topology';
 export * from './schemas/xray.schema';
 export * from './validators/ajv';
 

@@ -46,6 +46,14 @@ export interface SecurityConfig {
   bodyLimit: string;
 }
 
+export interface HmacConfig {
+  secretKey: string;
+  algorithm: 'sha256' | 'sha512';
+  timestampTolerance: number;
+  nonceLength: number;
+  nonceTtl: number;
+}
+
 export interface ObservabilityConfig {
   metricsEnabled: boolean;
   otelEnabled: boolean;
@@ -149,6 +157,17 @@ export class ConfigService {
       corsOrigin: this.cfg.get<string>('CORS_ORIGIN') || '*',
       corsCredentials: this.cfg.get<boolean>('CORS_CREDENTIALS') || false,
       bodyLimit: this.cfg.get<string>('BODY_LIMIT') || '10mb',
+    };
+  }
+
+  // HMAC Authentication Configuration
+  get hmac(): HmacConfig {
+    return {
+      secretKey: this.cfg.get<string>('HMAC_SECRET_KEY') || 'default-secret-key-change-in-production',
+      algorithm: (this.cfg.get<string>('HMAC_ALGORITHM') as 'sha256' | 'sha512') || 'sha256',
+      timestampTolerance: this.cfg.get<number>('HMAC_TIMESTAMP_TOLERANCE') || 300,
+      nonceLength: this.cfg.get<number>('HMAC_NONCE_LENGTH') || 16,
+      nonceTtl: this.cfg.get<number>('HMAC_NONCE_TTL') || 3600,
     };
   }
 

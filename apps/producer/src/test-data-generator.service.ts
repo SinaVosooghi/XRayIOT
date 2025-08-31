@@ -10,16 +10,18 @@ export class TestDataGeneratorService {
     return {
       deviceId: deviceId || `device_${Math.floor(Math.random() * 1000)}`,
       capturedAt: new Date().toISOString(),
-      payload: Buffer.from(JSON.stringify({
-        temperature: 20 + Math.random() * 10,
-        humidity: 40 + Math.random() * 20,
-        pressure: 1013 + Math.random() * 10,
-      })).toString('base64'),
+      payload: Buffer.from(
+        JSON.stringify({
+          temperature: 20 + Math.random() * 10,
+          humidity: 40 + Math.random() * 20,
+          pressure: 1013 + Math.random() * 10,
+        })
+      ).toString('base64'),
       schemaVersion: 'v1',
       metadata: {
         location: {
           latitude: 40.7128 + (Math.random() - 0.5) * 0.1,
-          longitude: -74.0060 + (Math.random() - 0.5) * 0.1,
+          longitude: -74.006 + (Math.random() - 0.5) * 0.1,
           altitude: 10 + Math.random() * 100,
         },
         battery: 20 + Math.random() * 80,
@@ -33,7 +35,7 @@ export class TestDataGeneratorService {
    */
   generateProcessedSignal(deviceId?: string): XRayProcessedSignal {
     const rawSignal = this.generateRawSignal(deviceId);
-    
+
     return {
       deviceId: rawSignal.deviceId,
       processedAt: new Date().toISOString(),
@@ -59,13 +61,16 @@ export class TestDataGeneratorService {
             confidence: 0.9 + Math.random() * 0.1,
           },
         ],
-        anomalies: Math.random() > 0.8 ? [
-          {
-            type: 'temperature_spike',
-            severity: 'low' as const,
-            description: 'Temperature reading above normal range',
-          },
-        ] : [],
+        anomalies:
+          Math.random() > 0.8
+            ? [
+                {
+                  type: 'temperature_spike',
+                  severity: 'low' as const,
+                  description: 'Temperature reading above normal range',
+                },
+              ]
+            : [],
       },
       schemaVersion: 'v1',
     };
