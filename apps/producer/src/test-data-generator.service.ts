@@ -125,21 +125,11 @@ export class TestDataGeneratorService {
   /**
    * Generate invalid data for testing validation
    */
-  generateInvalidRawSignal(): any {
+  generateInvalidData(): Record<string, unknown> {
     return {
+      deviceId: '', // Invalid: empty string
       // Missing required fields
-      deviceId: '', // Empty string (invalid)
-      // capturedAt missing
-      payload: 'a'.repeat(1048577), // Exceeds 1MB limit
-      schemaVersion: 'v3', // Invalid version
-      metadata: {
-        location: {
-          latitude: 200, // Invalid latitude
-          longitude: 200, // Invalid longitude
-        },
-        battery: 150, // Invalid battery level
-        signalStrength: 50, // Invalid signal strength
-      },
+      invalidField: 'should not be here',
     };
   }
 

@@ -1,15 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProducerService } from './producer.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ConfigService } from '@iotp/shared-config';
-import { XRayRawSignal, DeviceStatusUpdate } from '@iotp/shared-messaging';
-import { HmacAuthService, NonceTrackerService } from '@iotp/shared-utils';
+import { ProducerService } from './producer.service';
+import { HmacAuthService } from '@iotp/shared-utils';
+import { NonceTrackerService } from '@iotp/shared-utils';
+import { XRayRawSignal } from '@iotp/shared-messaging';
+
+// Type-safe mock interfaces
+interface MockAmqpConnection {
+  publish: jest.Mock;
+  connected: boolean;
+}
+
+interface MockHmacAuthService {
+  generateSignature: jest.Mock;
+  getConfig: jest.Mock;
+}
+
+interface MockNonceTrackerService {
+  isNonceUsed: jest.Mock;
+}
+
+interface MockConfigService {
+  get: jest.Mock;
+}
 
 describe('ProducerService', () => {
   let service: ProducerService;
-  let mockAmqpConnection: jest.Mocked<AmqpConnection>;
-  let mockHmacAuthService: jest.Mocked<HmacAuthService>;
-  let mockNonceTrackerService: jest.Mocked<NonceTrackerService>;
+  let mockAmqpConnection: MockAmqpConnection;
+  let mockHmacAuthService: MockHmacAuthService;
+  let mockNonceTrackerService: MockNonceTrackerService;
+  let mockConfigService: MockConfigService;
 
   const mockValidPayload: XRayRawSignal = {
     deviceId: 'test-device-001',
@@ -46,53 +67,65 @@ describe('ProducerService', () => {
   };
 
   beforeEach(async () => {
-    const mockAmqpConnectionProvider = {
-      provide: AmqpConnection,
-      useValue: {
-        publish: jest.fn(),
-        connected: true,
-      },
+    // Create type-safe mocks
+    mockAmqpConnection = {
+      publish: jest.fn() as jest.Mock<Promise<boolean>>,
+      connected: true,
     };
 
-    const mockConfigServiceProvider = {
-      provide: ConfigService,
-      useValue: {
-        get: jest.fn(),
-      },
+    mockConfigService = {
+      get: jest.fn(),
     };
 
-    const mockHmacAuthServiceProvider = {
-      provide: HmacAuthService,
-      useValue: {
-        generateSignature: jest.fn(),
-        getConfig: jest.fn(),
-      },
+    mockHmacAuthService = {
+      generateSignature: jest.fn() as jest.Mock<typeof mockHmacSignature>,
+      getConfig: jest.fn() as jest.Mock<{
+        algorithm: string;
+        secretKey: string;
+        timestampTolerance: number;
+        nonceLength: number;
+      }>,
     };
 
-    const mockNonceTrackerServiceProvider = {
-      provide: NonceTrackerService,
-      useValue: {
-        isNonceUsed: jest.fn(),
-      },
+    mockNonceTrackerService = {
+      isNonceUsed: jest.fn() as jest.Mock<Promise<boolean>>,
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProducerService,
-        mockAmqpConnectionProvider,
-        mockConfigServiceProvider,
-        mockHmacAuthServiceProvider,
-        mockNonceTrackerServiceProvider,
+        {
+          provide: AmqpConnection,
+          useValue: mockAmqpConnection,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: HmacAuthService,
+          useValue: mockHmacAuthService,
+        },
+        {
+          provide: NonceTrackerService,
+          useValue: mockNonceTrackerService,
+        },
       ],
     }).compile();
 
     service = module.get<ProducerService>(ProducerService);
-    mockAmqpConnection = module.get(AmqpConnection);
-    mockHmacAuthService = module.get(HmacAuthService);
-    mockNonceTrackerService = module.get(NonceTrackerService);
 
-    // Setup default HMAC mock
+    // Setup mock return values after creation
+    mockAmqpConnection.publish.mockResolvedValue(true);
     mockHmacAuthService.generateSignature.mockReturnValue(mockHmacSignature);
+    mockHmacAuthService.getConfig.mockReturnValue({
+      algorithm: 'sha256',
+      secretKey: 'test-key',
+      timestampTolerance: 300,
+      nonceLength: 16,
+    });
+
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -101,8 +134,6 @@ describe('ProducerService', () => {
 
   describe('publishMessage', () => {
     it('should publish a valid message successfully with HMAC authentication', async () => {
-      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
-
       await service.publishMessage(mockValidPayload);
 
       expect(mockHmacAuthService.generateSignature).toHaveBeenCalledWith(
@@ -115,10 +146,11 @@ describe('ProducerService', () => {
         'iot.xray',
         'xray.raw.v1',
         mockValidPayload,
+
         expect.objectContaining({
           headers: expect.objectContaining({
-            'x-correlation-id': expect.any(String),
-            'x-timestamp': expect.any(String),
+            'x-correlation-id': expect.any(String) as unknown as string,
+            'x-timestamp': expect.any(String) as unknown as string,
             'x-service': 'producer',
             'x-schema-version': 'v1',
             // HMAC authentication headers
@@ -127,8 +159,8 @@ describe('ProducerService', () => {
             'x-timestamp-auth': mockHmacSignature.timestamp,
             'x-nonce': mockHmacSignature.nonce,
             'x-algorithm': mockHmacSignature.algorithm,
-          }),
-        })
+          } as Record<string, unknown>),
+        } as Record<string, unknown>)
       );
     });
 
@@ -152,12 +184,14 @@ describe('ProducerService', () => {
     });
 
     it('should generate unique correlation IDs for each message', async () => {
-      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+      mockAmqpConnection.publish.mockResolvedValue(true);
 
       await service.publishMessage(mockValidPayload);
       await service.publishMessage(mockValidPayload);
 
-      const calls = mockAmqpConnection.publish.mock.calls;
+      const calls = mockAmqpConnection.publish.mock.calls as Array<
+        [string, string, XRayRawSignal, { headers: Record<string, string> }]
+      >;
       const correlationId1 = calls[0]?.[3]?.headers?.['x-correlation-id'];
       const correlationId2 = calls[1]?.[3]?.headers?.['x-correlation-id'];
 
@@ -174,7 +208,7 @@ describe('ProducerService', () => {
     ];
 
     it('should publish batch successfully with HMAC authentication', async () => {
-      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+      mockAmqpConnection.publish.mockResolvedValue(true);
 
       await service.publishBatch(mockBatchPayloads);
 
@@ -182,18 +216,19 @@ describe('ProducerService', () => {
       expect(mockAmqpConnection.publish).toHaveBeenCalledTimes(2);
 
       // Verify each message has HMAC headers
-      mockBatchPayloads.forEach((payload, index) => {
+      mockBatchPayloads.forEach((payload, _index) => {
         expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
           'iot.xray',
           'xray.raw.v1',
           payload,
+
           expect.objectContaining({
             headers: expect.objectContaining({
               'x-device-id': payload.deviceId,
               'x-hmac-signature': mockHmacSignature.signature,
               'x-algorithm': mockHmacSignature.algorithm,
-            }),
-          })
+            } as Record<string, unknown>),
+          } as Record<string, unknown>)
         );
       });
     });
@@ -211,7 +246,7 @@ describe('ProducerService', () => {
 
   describe('publishDeviceStatus', () => {
     it('should publish device status successfully with HMAC authentication', async () => {
-      mockAmqpConnection.publish.mockResolvedValue(undefined as any);
+      mockAmqpConnection.publish.mockResolvedValue(true);
 
       await service.publishDeviceStatus('test-device', 'online', { battery: 90 });
 
@@ -223,22 +258,24 @@ describe('ProducerService', () => {
       expect(mockAmqpConnection.publish).toHaveBeenCalledWith(
         'iot.xray',
         'device.status.v1',
+
         expect.objectContaining({
           deviceId: 'test-device',
           status: 'online',
           health: { battery: 90 },
-        }),
+        } as Record<string, unknown>),
+
         expect.objectContaining({
           headers: expect.objectContaining({
             'x-device-id': 'test-device',
             'x-hmac-signature': mockHmacSignature.signature,
             'x-algorithm': mockHmacSignature.algorithm,
-          }),
-        })
+          } as Record<string, unknown>),
+        } as Record<string, unknown>)
       );
     });
 
-    it('should reject invalid device status', async () => {
+    it('should reject invalid device status', () => {
       // This test would require mocking MessageValidator to return invalid
       // For now, we'll test the happy path
       expect(true).toBe(true);
@@ -252,9 +289,9 @@ describe('ProducerService', () => {
     });
 
     it('should validate device status', () => {
-      const deviceStatus: DeviceStatusUpdate = {
+      const deviceStatus = {
         deviceId: 'test-device',
-        status: 'online',
+        status: 'online' as const,
         lastSeen: new Date().toISOString(),
       };
       const result = service.validateDeviceStatus(deviceStatus);

@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { HmacAuthService } from './hmac-auth.service';
 import { NonceTrackerService } from './nonce-tracker.service';
+import { AuthenticatedRequest } from '../authenticated-request.interface';
 
 export const HMAC_AUTH_KEY = 'hmac_auth';
 export const HMAC_AUTH_OPTIONAL_KEY = 'hmac_auth_optional';
@@ -47,11 +48,11 @@ export class HmacAuthGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const headers = request.headers;
 
     // Default header names
-    const options: HmacAuthOptions = {
+    const options: Required<HmacAuthOptions> = {
       required: true,
       deviceIdHeader: 'x-device-id',
       signatureHeader: 'x-hmac-signature',
@@ -62,12 +63,12 @@ export class HmacAuthGuard implements CanActivate {
     };
 
     try {
-      // Extract authentication headers
-      const deviceId = headers[options.deviceIdHeader!];
-      const signature = headers[options.signatureHeader!];
-      const timestamp = headers[options.timestampHeader!];
-      const nonce = headers[options.nonceHeader!];
-      const algorithm = headers[options.algorithmHeader!];
+      // Extract authentication headers with proper type checking
+      const deviceId = this.getHeaderValue(headers, options.deviceIdHeader);
+      const signature = this.getHeaderValue(headers, options.signatureHeader);
+      const timestamp = this.getHeaderValue(headers, options.timestampHeader);
+      const nonce = this.getHeaderValue(headers, options.nonceHeader);
+      const algorithm = this.getHeaderValue(headers, options.algorithmHeader);
 
       // Check if all required headers are present
       if (!deviceId || !signature || !timestamp || !nonce || !algorithm) {
@@ -92,7 +93,7 @@ export class HmacAuthGuard implements CanActivate {
       const payload = this.getRequestPayload(request);
 
       // Validate HMAC signature
-      const validationResult = await this.hmacAuthService.validateSignature(
+      const validationResult = this.hmacAuthService.validateSignature(
         deviceId,
         payload,
         signature,
@@ -140,29 +141,29 @@ export class HmacAuthGuard implements CanActivate {
         throw error;
       }
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-
       this.logger.error('HMAC authentication error', {
-        error: errorMessage,
-        stack: errorStack,
-        headers: Object.keys(headers),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
       });
-
-      if (options.required) {
-        throw new UnauthorizedException('HMAC authentication failed');
-      } else {
-        // Optional auth - allow access on error
-        this.logger.warn('HMAC auth optional - allowing access despite error');
-        return true;
-      }
+      throw new UnauthorizedException('Authentication failed');
     }
+  }
+
+  private getHeaderValue(
+    headers: Record<string, string | string[] | undefined>,
+    headerName: string
+  ): string | undefined {
+    const value = headers[headerName];
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return value;
   }
 
   /**
    * Extract request payload for signature validation
    */
-  private getRequestPayload(request: any): string {
+  private getRequestPayload(request: AuthenticatedRequest): string {
     // Handle different content types
     if (request.body) {
       if (typeof request.body === 'string') {
@@ -192,11 +193,11 @@ export class HmacAuthGuard implements CanActivate {
  * Decorator to require HMAC authentication
  */
 export const RequireHmacAuth = (options?: HmacAuthOptions) => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
+  return (target: unknown, propertyKey?: string, descriptor?: PropertyDescriptor) => {
     Reflect.defineMetadata(
       HMAC_AUTH_KEY,
       { required: true, ...options },
-      descriptor?.value || target
+      (descriptor?.value || target) as object
     );
     return descriptor;
   };
@@ -206,12 +207,12 @@ export const RequireHmacAuth = (options?: HmacAuthOptions) => {
  * Decorator to make HMAC authentication optional
  */
 export const OptionalHmacAuth = (options?: HmacAuthOptions) => {
-  return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
-    Reflect.defineMetadata(HMAC_AUTH_OPTIONAL_KEY, true, descriptor?.value || target);
+  return (target: unknown, propertyKey?: string, descriptor?: PropertyDescriptor) => {
+    Reflect.defineMetadata(HMAC_AUTH_OPTIONAL_KEY, true, (descriptor?.value || target) as object);
     Reflect.defineMetadata(
       HMAC_AUTH_KEY,
       { required: false, ...options },
-      descriptor?.value || target
+      (descriptor?.value || target) as object
     );
     return descriptor;
   };

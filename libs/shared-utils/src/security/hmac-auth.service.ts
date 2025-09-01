@@ -76,14 +76,14 @@ export class HmacAuthService {
    * Validate HMAC signature
    * Implements timestamp validation, nonce replay protection, and signature verification
    */
-  async validateSignature(
+  validateSignature(
     deviceId: string,
     payload: string,
     signature: string,
     timestamp: string,
     nonce: string,
     algorithm: string
-  ): Promise<HmacValidationResult> {
+  ): HmacValidationResult {
     try {
       // 1. Validate algorithm
       if (algorithm !== this.config.algorithm) {
@@ -121,7 +121,7 @@ export class HmacAuthService {
 
       // 5. Check for nonce replay (basic implementation)
       // In production, use Redis to track used nonces with TTL
-      if (await this.isNonceReused(nonce)) {
+      if (this.isNonceReused(nonce)) {
         return {
           valid: false,
           reason: 'Nonce already used (replay attack detected)',
@@ -129,7 +129,7 @@ export class HmacAuthService {
       }
 
       // 6. Mark nonce as used
-      await this.markNonceAsUsed(nonce);
+      this.markNonceAsUsed(nonce);
 
       this.logger.debug('HMAC signature validation successful', {
         deviceId,
@@ -240,7 +240,7 @@ export class HmacAuthService {
    * Check if nonce has been reused (basic implementation)
    * In production, use Redis with TTL for better performance
    */
-  private async isNonceReused(nonce: string): Promise<boolean> {
+  private isNonceReused(nonce: string): boolean {
     // Basic in-memory tracking for demo purposes
     // In production, use Redis with TTL
     const usedNonces = new Set<string>();
@@ -255,7 +255,7 @@ export class HmacAuthService {
   /**
    * Mark nonce as used
    */
-  private async markNonceAsUsed(nonce: string): Promise<void> {
+  private markNonceAsUsed(nonce: string): void {
     // Basic in-memory tracking for demo purposes
     // In production, use Redis with TTL
     const usedNonces = new Set<string>();

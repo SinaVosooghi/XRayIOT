@@ -1,4 +1,4 @@
-import Ajv, { JSONSchemaType, ValidateFunction } from 'ajv';
+import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { schemas } from '../schemas/xray.schema';
 
@@ -18,18 +18,17 @@ addFormats(ajv);
 const validators: Record<string, ValidateFunction> = {};
 
 Object.entries(schemas).forEach(([key, schema]) => {
-  try {
-    validators[key] = ajv.compile(schema);
-  } catch (error) {
-    console.error(`Failed to compile schema ${key}:`, error);
-  }
+  validators[key] = ajv.compile(schema);
 });
 
 export class MessageValidator {
   /**
    * Validate a message against a specific schema
    */
-  static validate<T = any>(schemaKey: string, data: T): { valid: boolean; errors?: string[] } {
+  static validate<T = Record<string, unknown>>(
+    schemaKey: string,
+    data: T
+  ): { valid: boolean; errors?: string[] } {
     const validator = validators[schemaKey];
 
     if (!validator) {
@@ -54,21 +53,27 @@ export class MessageValidator {
   /**
    * Validate XRay raw signal
    */
-  static validateRawSignal(data: any): { valid: boolean; errors?: string[] } {
+  static validateRawSignal(data: Record<string, unknown>): { valid: boolean; errors?: string[] } {
     return this.validate('xray.raw.v1', data);
   }
 
   /**
    * Validate XRay processed signal
    */
-  static validateProcessedSignal(data: any): { valid: boolean; errors?: string[] } {
+  static validateProcessedSignal(data: Record<string, unknown>): {
+    valid: boolean;
+    errors?: string[];
+  } {
     return this.validate('xray.processed.v1', data);
   }
 
   /**
    * Validate device status update
    */
-  static validateDeviceStatus(data: any): { valid: boolean; errors?: string[] } {
+  static validateDeviceStatus(data: Record<string, unknown>): {
+    valid: boolean;
+    errors?: string[];
+  } {
     return this.validate('device.status.v1', data);
   }
 
@@ -95,4 +100,3 @@ export class MessageValidator {
 }
 
 export { ajv };
-export default MessageValidator;
