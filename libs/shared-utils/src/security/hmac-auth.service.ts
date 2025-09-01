@@ -51,7 +51,7 @@ export class HmacAuthService {
 
     // Create signature base string (OAuth 1.0a style)
     const signatureBase = this.createSignatureBase(deviceId, payload, ts, n);
-    
+
     // Generate HMAC signature
     const signature = createHmac(this.config.algorithm, this.config.secretKey)
       .update(signatureBase)
@@ -191,9 +191,7 @@ export class HmacAuthService {
    * Hash payload for signature (prevents payload tampering)
    */
   private hashPayload(payload: string): string {
-    return createHmac(this.config.algorithm, this.config.secretKey)
-      .update(payload)
-      .digest('hex');
+    return createHmac(this.config.algorithm, this.config.secretKey).update(payload).digest('hex');
   }
 
   /**
@@ -246,7 +244,7 @@ export class HmacAuthService {
     // Basic in-memory tracking for demo purposes
     // In production, use Redis with TTL
     const usedNonces = new Set<string>();
-    
+
     if (usedNonces.has(nonce)) {
       return true;
     }

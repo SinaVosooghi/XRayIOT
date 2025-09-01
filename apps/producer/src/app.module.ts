@@ -24,11 +24,6 @@ import { HmacAuthService, NonceTrackerService } from '@iotp/shared-utils';
     }),
   ],
   controllers: [TestController],
-  providers: [
-    ProducerService,
-    TestDataGeneratorService,
-    HmacAuthService,
-    NonceTrackerService,
-  ],
+  providers: [ProducerService, TestDataGeneratorService, HmacAuthService, NonceTrackerService],
 })
 export class AppModule {}

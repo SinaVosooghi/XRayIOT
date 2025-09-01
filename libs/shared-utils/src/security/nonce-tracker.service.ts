@@ -20,10 +20,10 @@ export class NonceTrackerService {
   async isNonceUsed(nonce: string, deviceId: string): Promise<boolean> {
     try {
       const key = `nonce:${deviceId}:${nonce}`;
-      
+
       // Try to set the nonce with expiration (NX = only if not exists)
       const result = await this.redis.set(key, '1', 'EX', this.nonceTtl, 'NX');
-      
+
       if (result === 'OK') {
         // Nonce was successfully set (not previously used)
         this.logger.debug('Nonce marked as used', { nonce, deviceId, ttl: this.nonceTtl });
@@ -56,7 +56,7 @@ export class NonceTrackerService {
         // Get device-specific nonces
         const pattern = `nonce:${deviceId}:*`;
         const keys = await this.redis.keys(pattern);
-        
+
         if (keys.length === 0) {
           return { totalNonces: 0, deviceNonces: 0 };
         }
@@ -134,14 +134,14 @@ export class NonceTrackerService {
     try {
       const key = `nonce:${deviceId}:${nonce}`;
       const currentTtl = await this.redis.ttl(key);
-      
+
       if (currentTtl > 0) {
         const newTtl = currentTtl + additionalTtl;
         await this.redis.expire(key, newTtl);
         this.logger.debug('Extended nonce TTL', { nonce, deviceId, newTtl });
         return true;
       }
-      
+
       return false;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

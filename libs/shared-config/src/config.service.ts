@@ -163,7 +163,8 @@ export class ConfigService {
   // HMAC Authentication Configuration
   get hmac(): HmacConfig {
     return {
-      secretKey: this.cfg.get<string>('HMAC_SECRET_KEY') || 'default-secret-key-change-in-production',
+      secretKey:
+        this.cfg.get<string>('HMAC_SECRET_KEY') || 'default-secret-key-change-in-production',
       algorithm: (this.cfg.get<string>('HMAC_ALGORITHM') as 'sha256' | 'sha512') || 'sha256',
       timestampTolerance: this.cfg.get<number>('HMAC_TIMESTAMP_TOLERANCE') || 300,
       nonceLength: this.cfg.get<number>('HMAC_NONCE_LENGTH') || 16,

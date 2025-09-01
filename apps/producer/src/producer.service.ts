@@ -81,13 +81,15 @@ export class ProducerService {
     for (const payload of payloads) {
       const validation = MessageValidator.validateRawSignal(payload);
       if (!validation.valid) {
-        throw new Error(`Batch validation failed for device ${payload.deviceId}: ${validation.errors?.join(', ')}`);
+        throw new Error(
+          `Batch validation failed for device ${payload.deviceId}: ${validation.errors?.join(', ')}`
+        );
       }
     }
 
     try {
       // Publish each message with HMAC authentication
-      const publishPromises = payloads.map(async (payload) => {
+      const publishPromises = payloads.map(async payload => {
         const hmacSignature = this.hmacAuthService.generateSignature(
           payload.deviceId,
           JSON.stringify(payload),

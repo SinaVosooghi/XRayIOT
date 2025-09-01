@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { HmacAuthService } from './hmac-auth.service';
 import { NonceTrackerService } from './nonce-tracker.service';
@@ -84,7 +90,7 @@ export class HmacAuthGuard implements CanActivate {
 
       // Get request body for signature validation
       const payload = this.getRequestPayload(request);
-      
+
       // Validate HMAC signature
       const validationResult = await this.hmacAuthService.validateSignature(
         deviceId,
@@ -187,7 +193,11 @@ export class HmacAuthGuard implements CanActivate {
  */
 export const RequireHmacAuth = (options?: HmacAuthOptions) => {
   return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
-    Reflect.defineMetadata(HMAC_AUTH_KEY, { required: true, ...options }, descriptor?.value || target);
+    Reflect.defineMetadata(
+      HMAC_AUTH_KEY,
+      { required: true, ...options },
+      descriptor?.value || target
+    );
     return descriptor;
   };
 };
@@ -198,7 +208,11 @@ export const RequireHmacAuth = (options?: HmacAuthOptions) => {
 export const OptionalHmacAuth = (options?: HmacAuthOptions) => {
   return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
     Reflect.defineMetadata(HMAC_AUTH_OPTIONAL_KEY, true, descriptor?.value || target);
-    Reflect.defineMetadata(HMAC_AUTH_KEY, { required: false, ...options }, descriptor?.value || target);
+    Reflect.defineMetadata(
+      HMAC_AUTH_KEY,
+      { required: false, ...options },
+      descriptor?.value || target
+    );
     return descriptor;
   };
 };

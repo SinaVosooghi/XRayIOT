@@ -199,10 +199,7 @@ describe('ProducerService', () => {
     });
 
     it('should reject batch with invalid messages', async () => {
-      const invalidBatch = [
-        mockValidPayload,
-        mockInvalidPayload as XRayRawSignal,
-      ];
+      const invalidBatch = [mockValidPayload, mockInvalidPayload as XRayRawSignal];
 
       await expect(service.publishBatch(invalidBatch)).rejects.toThrow(
         'Batch validation failed for device : must have required property'
@@ -272,14 +269,14 @@ describe('ProducerService', () => {
     });
 
     it('should get HMAC configuration', () => {
-      const config = { 
-        algorithm: 'sha256' as const, 
+      const config = {
+        algorithm: 'sha256' as const,
         secretKey: 'test-key',
         timestampTolerance: 300,
-        nonceLength: 16
+        nonceLength: 16,
       };
       mockHmacAuthService.getConfig.mockReturnValue(config);
-      
+
       const result = service.getHmacConfig();
       expect(result).toEqual(config);
     });
