@@ -35,13 +35,25 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '22'
 
     - name: Enable Corepack
       run: corepack enable
 
     - name: Setup Yarn
       run: corepack prepare yarn@4.9.4 --activate
+
+    - name: Install build tools
+      run: sudo apt-get update && sudo apt-get install -y build-essential python3
+
+    - name: Set MongoDB download env variables
+      run: |
+        echo "DOWNLOAD_DIR=/tmp/mongodb-binaries" >> $GITHUB_ENV
+        echo "DOWNLOAD_MIRROR=fastdl.mongodb.org" >> $GITHUB_ENV
+        echo "MONGODB_DOWNLOAD_DIR=/tmp/mongodb-binaries" >> $GITHUB_ENV
+
+    - name: Clean yarn cache
+      run: yarn cache clean
 
     - name: Install dependencies
       run: yarn install --immutable
