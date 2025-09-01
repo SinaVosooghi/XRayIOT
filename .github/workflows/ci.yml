@@ -58,7 +58,7 @@ jobs:
         
       - name: Run unit tests
         run: |
-          export $(cat .env.test | xargs)
+          export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
           yarn test
         
       - name: Run e2e tests
