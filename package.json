@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "PANTOhealth IoT X-Ray Data Platform",
   "private": true,
+  "type": "module",
   "packageManager": "yarn@4.9.4",
   "scripts": {
     "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
