@@ -29,5 +29,4 @@ module.exports = {
   testEnvironmentOptions: {
     NODE_ENV: 'test',
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 };
