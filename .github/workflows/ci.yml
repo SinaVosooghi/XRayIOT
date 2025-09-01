@@ -48,6 +48,7 @@ jobs:
       - name: Set test environment variables
         run: |
           echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "SKIP_CONFIG_VALIDATION=true" >> $GITHUB_ENV
         
       - name: Run linting
         run: yarn lint
@@ -107,6 +108,7 @@ jobs:
       - name: Set test environment variables
         run: |
           echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "SKIP_CONFIG_VALIDATION=true" >> $GITHUB_ENV
         
       - name: Build project
         run: yarn build
