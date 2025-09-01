@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@iotp/shared-config';
+import { SharedConfigModule } from '@iotp/shared-config';
 import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
 import { ProducerService } from './producer.service';
 import { TestController } from './test.controller';
@@ -8,8 +8,8 @@ import { HmacAuthService, NonceTrackerService } from '@iotp/shared-utils';
 
 @Module({
   imports: [
-    ConfigModule,
-    RabbitMQModule.forRootAsync(RabbitMQModule, {
+    SharedConfigModule,
+    RabbitMQModule.forRootAsync({
       useFactory: () => ({
         exchanges: [
           {
