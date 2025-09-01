@@ -111,4 +111,13 @@ export class TestController {
       };
     }
   }
+
+  @Get('health')
+  healthCheck() {
+    return {
+      status: 'ok',
+      service: 'producer',
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

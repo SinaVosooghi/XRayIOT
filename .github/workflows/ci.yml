@@ -47,9 +47,6 @@ jobs:
         
       - name: Set test environment variables
         run: |
-          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
-          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
-          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
       - name: Run linting
@@ -109,9 +106,6 @@ jobs:
         
       - name: Set test environment variables
         run: |
-          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
-          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
-          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
       - name: Build project
@@ -248,12 +242,64 @@ jobs:
           echo "Waiting for Redis..."
           timeout 60 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 2; done'
         
+      - name: Build Docker images
+        run: |
+          docker build -t xrayiot-api:test ./apps/api
+          docker build -t xrayiot-signals:test ./apps/signals
+          docker build -t xrayiot-producer:test ./apps/producer
+          
+      - name: Start application containers
+        run: |
+          # Start API service
+          docker run -d \
+            --name api-test \
+            --network host \
+            --env-file .env.test \
+            -p 3002:3000 \
+            xrayiot-api:test
+            
+          # Start Signals service
+          docker run -d \
+            --name signals-test \
+            --network host \
+            --env-file .env.test \
+            xrayiot-signals:test
+            
+          # Start Producer service
+          docker run -d \
+            --name producer-test \
+            --network host \
+            --env-file .env.test \
+            -p 3003:3000 \
+            xrayiot-producer:test
+            
+      - name: Wait for applications to start
+        run: |
+          echo "Waiting for API service..."
+          timeout 60 bash -c 'until curl -f http://localhost:3002/health; do sleep 2; done'
+          
+          echo "Waiting for Producer service..."
+          timeout 60 bash -c 'until curl -f http://localhost:3003/test/health; do sleep 2; done'
+          
+          echo "All services are ready!"
+          
       - name: Run integration tests
         run: |
-          export MONGO_URI="mongodb://admin:password@localhost:27017"
-          export RABBITMQ_URI="amqp://admin:password@localhost:5672"
-          export REDIS_URI="redis://localhost:6379"
+          export API_BASE_URL="http://localhost:3002"
+          export PRODUCER_BASE_URL="http://localhost:3003"
           yarn test:integration
+          
+      - name: Run e2e tests
+        run: |
+          export API_BASE_URL="http://localhost:3002"
+          export PRODUCER_BASE_URL="http://localhost:3003"
+          yarn test:e2e
+          
+      - name: Cleanup containers
+        if: always()
+        run: |
+          docker stop api-test signals-test producer-test || true
+          docker rm api-test signals-test producer-test || true
 
   deploy-staging:
     name: Deploy to Staging
