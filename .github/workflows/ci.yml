@@ -45,11 +45,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
         
-      - name: Set test environment variables
+      - name: Set up test environment
         run: |
-          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
-          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
-          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
+          cp env.test.example .env.test
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
       - name: Run linting
@@ -107,11 +105,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
         
-      - name: Set test environment variables
+      - name: Set up test environment
         run: |
-          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
-          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
-          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
+          cp env.test.example .env.test
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
       - name: Build project
