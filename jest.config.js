@@ -26,4 +26,8 @@ module.exports = {
   verbose: true,
   clearMocks: true,
   restoreMocks: true,
+  testEnvironmentOptions: {
+    NODE_ENV: 'test',
+    SKIP_CONFIG_VALIDATION: 'true',
+  },
 };

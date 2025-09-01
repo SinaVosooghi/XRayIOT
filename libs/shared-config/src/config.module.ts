@@ -29,6 +29,12 @@ export class SharedConfigModule implements OnModuleInit {
   constructor(private readonly configService: CustomConfigService) {}
 
   onModuleInit() {
+    // Skip configuration validation in test environment to avoid requiring real environment variables
+    if (process.env.NODE_ENV === 'test' && process.env.SKIP_CONFIG_VALIDATION === 'true') {
+      console.log('⏭️ Skipping configuration validation in test environment');
+      return;
+    }
+
     try {
       // Validate configuration at startup
       this.configService.validate();
