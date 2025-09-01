@@ -57,7 +57,9 @@ jobs:
         run: yarn type-check
         
       - name: Run unit tests
-        run: yarn test
+        run: |
+          export $(cat .env.test | xargs)
+          yarn test
         
       - name: Run e2e tests
         run: yarn test:e2e

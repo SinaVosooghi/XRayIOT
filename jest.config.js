@@ -28,6 +28,6 @@ module.exports = {
   restoreMocks: true,
   testEnvironmentOptions: {
     NODE_ENV: 'test',
-    SKIP_CONFIG_VALIDATION: 'true',
   },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 };
