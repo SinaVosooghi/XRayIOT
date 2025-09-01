@@ -47,8 +47,10 @@ jobs:
         
       - name: Set test environment variables
         run: |
+          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
+          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
+          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
-          echo "SKIP_CONFIG_VALIDATION=true" >> $GITHUB_ENV
         
       - name: Run linting
         run: yarn lint
@@ -107,8 +109,10 @@ jobs:
         
       - name: Set test environment variables
         run: |
+          echo "MONGO_URI=mongodb://localhost:27017/test" >> $GITHUB_ENV
+          echo "RABBITMQ_URI=amqp://localhost:5672" >> $GITHUB_ENV
+          echo "REDIS_URI=redis://localhost:6379" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
-          echo "SKIP_CONFIG_VALIDATION=true" >> $GITHUB_ENV
         
       - name: Build project
         run: yarn build
