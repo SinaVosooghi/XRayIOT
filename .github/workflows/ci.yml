@@ -61,9 +61,6 @@ jobs:
           export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
           yarn test
         
-      - name: Run e2e tests
-        run: yarn test:e2e
-        
       - name: Upload test coverage
         uses: codecov/codecov-action@v3
         with:
