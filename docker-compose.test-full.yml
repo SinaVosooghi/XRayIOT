@@ -1,68 +1,87 @@
 version: "3.9"
+
 services:
-  # Test Infrastructure - Same as production but with test database
+  # MongoDB - Primary Database
   mongo-test:
     image: mongo:7
+    container_name: xrayiot-mongo-test
+    restart: unless-stopped
     env_file:
       - .env.test
-    ports: ["${MONGO_PORT:-27018}:27017"]  # Different port to avoid conflicts
     environment:
-      MONGO_INITDB_DATABASE: ${MONGO_DB:-iotp-test}
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "${MONGO_PORT}:27017"
     volumes:
       - mongo_test_data:/data/db
-      - ../init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
+    networks:
+      - xrayiot-test
 
-  # RabbitMQ
+  # RabbitMQ - Message Queue
   rabbit-test:
     image: rabbitmq:3.12-management
-    container_name: iot-docker-rabbit-test
+    container_name: xrayiot-rabbit-test
     restart: unless-stopped
     env_file:
       - .env.test
-    ports:
-      - "${RABBITMQ_PORT:-5673}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-password}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
       RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
     volumes:
       - rabbit_test_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 40s
+    networks:
+      - xrayiot-test
 
+  # Redis - Caching and Idempotency
   redis-test:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: xrayiot-redis-test
+    restart: unless-stopped
     env_file:
       - .env.test
-    ports: ["${REDIS_PORT:-6380}:6379"]  # Different port
+    ports:
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_test_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 10s
+    networks:
+      - xrayiot-test
 
-  # Test Services
+  # API Service - REST API Gateway
   api-test:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: runner
+    container_name: xrayiot-api-test
+    restart: unless-stopped
     env_file:
       - .env.test
-    ports: ["${API_PORT:-3002}:3000"]  # Different port
+    ports:
+      - "${API_PORT}:3000"
     depends_on:
       mongo-test:
         condition: service_healthy
@@ -70,11 +89,23 @@ services:
         condition: service_healthy
       redis-test:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - xrayiot-test
 
+  # Signals Service - Message Consumer
   signals-test:
     build:
       context: .
       dockerfile: apps/signals/Dockerfile
+      target: runner
+    container_name: xrayiot-signals-test
+    restart: unless-stopped
     env_file:
       - .env.test
     depends_on:
@@ -84,14 +115,27 @@ services:
         condition: service_healthy
       redis-test:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - xrayiot-test
 
+  # Producer Service - Test Data Generator
   producer-test:
     build:
       context: .
       dockerfile: apps/producer/Dockerfile
+      target: runner
+    container_name: xrayiot-producer-test
+    restart: unless-stopped
     env_file:
       - .env.test
-    ports: ["${PRODUCER_PORT:-3003}:3000"]  # Map external 3003 to internal 3000
+    ports:
+      - "${PRODUCER_PORT}:3000"
     depends_on:
       mongo-test:
         condition: service_healthy
@@ -99,8 +143,24 @@ services:
         condition: service_healthy
       redis-test:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/test/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - xrayiot-test
 
 volumes:
   mongo_test_data:
+    driver: local
   rabbit_test_data:
+    driver: local
   redis_test_data:
+    driver: local
+
+networks:
+  xrayiot-test:
+    driver: bridge
+    name: xrayiot-test-network
