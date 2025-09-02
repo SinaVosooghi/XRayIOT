@@ -192,12 +192,14 @@ jobs:
           yarn audit --audit-level moderate || echo "Audit completed with warnings"
           
       - name: Run Snyk security scan
-        if: ${{ secrets.SNYK_TOKEN }}
-        uses: snyk/actions/node@master
+        run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            npx snyk test --severity-threshold=high
+          else
+            echo "Skipping Snyk scan - no token provided"
+          fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
 
   integration:
     name: Integration Tests
