@@ -187,7 +187,7 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           
-      - name: Run npm audit
+      - name: Run yarn audit
         run: |
           yarn audit --audit-level moderate
           
