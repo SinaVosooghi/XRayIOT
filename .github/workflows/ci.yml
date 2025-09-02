@@ -114,9 +114,8 @@ jobs:
         
       - name: Build Docker images
         run: |
-          docker build -t xrayiot-api:latest ./apps/api
-          docker build -t xrayiot-signals:latest ./apps/signals
-          docker build -t xrayiot-producer:latest ./apps/producer
+          export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
+          docker-compose -f docker-compose.test-full.yml build
           
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -200,7 +199,9 @@ jobs:
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
       - name: Start test infrastructure
-        run: docker-compose -f docker-compose.test-full.yml up -d
+        run: |
+          export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
+          docker-compose -f docker-compose.test-full.yml up -d
         
       - name: Wait for services to be ready
         run: |
