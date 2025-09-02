@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+permissions:
+  contents: read
+  security-events: write
+
 env:
   NODE_VERSION: '22'
   YARN_VERSION: '4.9.4'
