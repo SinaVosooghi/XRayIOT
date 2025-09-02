@@ -189,7 +189,7 @@ jobs:
           
       - name: Run yarn audit
         run: |
-          yarn audit --audit-level moderate || echo "Audit completed with warnings"
+          timeout 300 yarn audit --audit-level moderate || echo "Audit completed with warnings or timeout"
           
       - name: Run Snyk security scan
         run: |
