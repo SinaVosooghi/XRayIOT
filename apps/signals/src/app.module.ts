@@ -6,6 +6,7 @@ import { XRayModule } from './xray/xray.module';
 import { RmqModule } from './rmq/rmq.module';
 import { RawModule } from './raw/raw.module';
 import { DlqModule } from './dlq/dlq.module';
+import { GracefulShutdownService } from '@iotp/shared-utils';
 
 @Module({
   imports: [
@@ -27,5 +28,6 @@ import { DlqModule } from './dlq/dlq.module';
     RawModule,
     DlqModule,
   ],
+  providers: [GracefulShutdownService],
 })
 export class AppModule {}
