@@ -5,6 +5,7 @@
   "private": true,
   "packageManager": "yarn@4.9.4",
   "scripts": {
+    "audit": "yarn audit",
     "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
     "lint": "eslint \"{src,apps,libs,test,e2e}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test,e2e}/**/*.ts\"",
