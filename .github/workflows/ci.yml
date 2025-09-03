@@ -272,15 +272,13 @@ jobs:
         
       - name: Run integration tests
         run: |
+          set -a && source .env.test && set +a
           export API_BASE_URL="http://localhost:3002"
           export PRODUCER_BASE_URL="http://localhost:3003"
           yarn test:integration
         
       - name: Run e2e tests
-        run: |
-          export API_BASE_URL="http://localhost:3002"
-          export PRODUCER_BASE_URL="http://localhost:3003"
-          yarn test:e2e
+        run: ./scripts/test-e2e.sh
         
       - name: Cleanup test infrastructure
         if: always()

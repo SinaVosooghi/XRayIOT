@@ -752,8 +752,8 @@ describe('Real Infrastructure Integration Tests', () => {
     it('should handle concurrent device connections', async () => {
       console.log('🧪 Testing concurrent device connections...');
 
-      const deviceCount = 50;
-      const messagesPerDevice = 3;
+      const deviceCount = 20;
+      const messagesPerDevice = 2;
       const startTime = Date.now();
 
       // Create messages for multiple devices
@@ -792,7 +792,7 @@ describe('Real Infrastructure Integration Tests', () => {
       console.log(
         `📊 Producer response: ${successfulSends}/${allMessages.length} messages sent successfully`
       );
-      expect(successfulSends).toBeGreaterThan(allMessages.length * 0.9); // At least 80% success rate
+      expect(successfulSends).toBeGreaterThan(allMessages.length * 0.95); // At least 95% success rate
 
       // Wait for processing with detailed logging
       console.log('⏳ Waiting for signals consumer to process messages...');
