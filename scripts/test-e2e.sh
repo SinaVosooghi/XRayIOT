@@ -40,6 +40,8 @@ elapsed=0
 while [ $elapsed -lt $timeout ]; do
     if docker compose -f docker-compose.test-full.yml ps | grep -q "healthy"; then
         echo "✅ Services are healthy"
+        echo "⏳ Waiting additional 30s for services to fully initialize..."
+        sleep 30
         break
     fi
     echo "⏳ Waiting for services... (${elapsed}s elapsed)"
@@ -59,17 +61,29 @@ API_URL="http://localhost:${API_PORT}"
 PRODUCER_URL="http://localhost:${PRODUCER_PORT}"
 
 # Test API health
-if ! curl -s "${API_URL}/api/health" | grep -q '"status":"ok"'; then
+echo "🔍 Testing API health endpoint..."
+API_RESPONSE=$(curl -s "${API_URL}/api/health" || echo "FAILED")
+echo "API Response: $API_RESPONSE"
+
+if [ "$API_RESPONSE" = "FAILED" ] || ! echo "$API_RESPONSE" | grep -q '"status"'; then
     echo "❌ API service is not responding at ${API_URL}/api/health"
-    docker compose -f docker-compose.test-full.yml logs api-test
+    echo "📋 API logs:"
+    docker compose -f docker-compose.test-full.yml logs api-test | tail -20
+    echo "📋 All service status:"
+    docker compose -f docker-compose.test-full.yml ps
     exit 1
 fi
 echo "✅ API service is responding"
 
 # Test Producer health
-if ! curl -s "${PRODUCER_URL}/test/health" | grep -q '"status":"ok"'; then
+echo "🔍 Testing Producer health endpoint..."
+PRODUCER_RESPONSE=$(curl -s "${PRODUCER_URL}/test/health" || echo "FAILED")
+echo "Producer Response: $PRODUCER_RESPONSE"
+
+if [ "$PRODUCER_RESPONSE" = "FAILED" ] || ! echo "$PRODUCER_RESPONSE" | grep -q '"status"'; then
     echo "❌ Producer service is not responding at ${PRODUCER_URL}/test/health"
-    docker compose -f docker-compose.test-full.yml logs producer-test
+    echo "📋 Producer logs:"
+    docker compose -f docker-compose.test-full.yml logs producer-test | tail -20
     exit 1
 fi
 echo "✅ Producer service is responding"
