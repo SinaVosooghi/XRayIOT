@@ -1,4 +1,5 @@
 import { PaginatedSignals, SignalDto } from '@iotp/shared-types';
+import { XRayRawSignal } from '@iotp/shared-messaging';
 
 // Types for test data - matching the actual format used in tests
 export interface TestDataPoint {
@@ -57,22 +58,81 @@ export const createCoordinateTestData = (
   return createTestData(deviceId, dataPoints, time);
 };
 
+// Convert test data to XRayRawSignal format
+const convertToXRayRawSignal = (testData: TestMessage): XRayRawSignal[] => {
+  const signals: XRayRawSignal[] = [];
+  
+  for (const [deviceId, deviceData] of Object.entries(testData)) {
+    for (const dataPoint of deviceData.data) {
+      const timestamp = dataPoint[0];
+      const [lat, lon, altitude] = dataPoint[1];
+      
+      signals.push({
+        deviceId,
+        capturedAt: new Date(timestamp * 1000).toISOString(),
+        payload: Buffer.from(JSON.stringify({
+          timestamp,
+          coordinates: [lat, lon, altitude],
+          time: deviceData.time
+        })).toString('base64'),
+        schemaVersion: 'v1',
+        metadata: {
+          location: {
+            latitude: lat,
+            longitude: lon,
+            altitude: altitude
+          },
+          battery: 85,
+          signalStrength: -65
+        }
+      });
+    }
+  }
+  
+  return signals;
+};
+
 // Producer interaction utilities
 export const sendTestMessage = async (
   producerUrl: string,
   testData: TestMessage
 ): Promise<globalThis.Response> => {
-  return fetch(`${producerUrl}/test/publish/message`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(testData),
-  });
+  const signals = convertToXRayRawSignal(testData);
+  
+  // Send first signal using send-raw endpoint
+  if (signals.length > 0) {
+    return fetch(`${producerUrl}/test/send-raw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(signals[0]),
+    });
+  }
+  
+  return new Response('{}', { status: 400 });
 };
 
 export const sendSampleMessage = async (producerUrl: string): Promise<globalThis.Response> => {
-  return fetch(`${producerUrl}/test/publish/sample`, {
+  // Create a sample XRayRawSignal
+  const sampleSignal: XRayRawSignal = {
+    deviceId: 'test-device-sample',
+    capturedAt: new Date().toISOString(),
+    payload: Buffer.from(JSON.stringify({ test: 'sample data' })).toString('base64'),
+    schemaVersion: 'v1',
+    metadata: {
+      location: {
+        latitude: 52.5200,
+        longitude: 13.4050,
+        altitude: 34.0
+      },
+      battery: 85,
+      signalStrength: -65
+    }
+  };
+  
+  return fetch(`${producerUrl}/test/send-raw`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sampleSignal),
   });
 };
 
