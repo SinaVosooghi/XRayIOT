@@ -112,6 +112,13 @@ export const configSchema = Joi.object({
   CORS_CREDENTIALS: Joi.boolean().default(false),
   BODY_LIMIT: Joi.string().default('10mb'),
 
+  // HMAC Configuration
+  HMAC_SECRET_KEY: Joi.string().default('default-secret-key-change-in-production'),
+  HMAC_ALGORITHM: Joi.string().valid('sha256', 'sha512').default('sha256'),
+  HMAC_TIMESTAMP_TOLERANCE: Joi.number().default(300),
+  HMAC_NONCE_LENGTH: Joi.number().default(16),
+  HMAC_NONCE_TTL: Joi.number().default(3600),
+
   // Observability Configuration
   METRICS_ENABLED: Joi.boolean().default(true),
   OTEL_ENABLED: Joi.boolean().default(false),

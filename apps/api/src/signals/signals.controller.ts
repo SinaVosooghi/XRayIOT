@@ -8,11 +8,14 @@ import {
   Put,
   Delete,
   NotFoundException,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SignalsService } from './signals.service';
 import { CreateSignalDto, UpdateSignalDto } from './dto/index';
-import { BaseQuerySignalsDto, SignalDto, Paginated } from '@iotp/shared-types';
+import { SignalDto, Paginated } from '@iotp/shared-types';
+import { QuerySignalsDto } from './dto/query-signals.dto';
 
 @ApiTags('signals')
 @Controller('signals')
@@ -45,7 +48,7 @@ export class SignalsController {
   @Get()
   @ApiOperation({ summary: 'Get all signals with pagination' })
   @ApiResponse({ status: 200, description: 'Signals retrieved successfully' })
-  async findAll(@Query() query: BaseQuerySignalsDto): Promise<Paginated<SignalDto>> {
+  async findAll(@Query() query: QuerySignalsDto): Promise<Paginated<SignalDto>> {
     return this.svc.findAll(query);
   }
 
@@ -68,5 +71,52 @@ export class SignalsController {
   async remove(@Param('id') id: string): Promise<{ deleted: boolean }> {
     const result = await this.svc.remove(id);
     return { deleted: result };
+  }
+
+  @Get(':id/raw/metadata')
+  @ApiOperation({ summary: 'Get raw data metadata for a signal' })
+  @ApiResponse({ status: 200, description: 'Raw metadata retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Signal or raw data not found' })
+  async getRawMetadata(
+    @Param('id') id: string
+  ): Promise<{ filename: string; size?: number; length?: number }> {
+    // First get the signal to get the rawRef
+    const signal = await this.svc.findOne(id);
+    if (!signal) {
+      throw new NotFoundException(`Signal with ID ${id} not found`);
+    }
+
+    if (!signal.rawRef) {
+      throw new NotFoundException(`No raw data found for signal ${id}`);
+    }
+
+    // Get the raw metadata using the rawRef
+    return this.svc.getRawMetadata(signal.rawRef);
+  }
+
+  @Get(':id/raw')
+  @ApiOperation({ summary: 'Get raw data for a signal' })
+  @ApiResponse({ status: 200, description: 'Raw data retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Signal or raw data not found' })
+  async getRawData(@Param('id') id: string, @Res() res: Response): Promise<void> {
+    // First get the signal to get the rawRef
+    const signal = await this.svc.findOne(id);
+    if (!signal) {
+      throw new NotFoundException(`Signal with ID ${id} not found`);
+    }
+
+    if (!signal.rawRef) {
+      throw new NotFoundException(`No raw data found for signal ${id}`);
+    }
+
+    // Get the raw data using the rawRef
+    const rawData = await this.svc.getRawData(signal.rawRef);
+
+    // Set appropriate headers for binary data
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', rawData.length.toString());
+
+    // Send the raw data
+    res.send(rawData);
   }
 }

@@ -269,6 +269,34 @@ export class SignalsService {
     }
   }
 
+  async getRawData(rawRef: string): Promise<Buffer> {
+    try {
+      const objectId = new ObjectId(rawRef);
+      const downloadStream = this.gfs.openDownloadStream(objectId);
+
+      const chunks: Buffer[] = [];
+
+      return new Promise((resolve, reject) => {
+        downloadStream.on('data', (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+
+        downloadStream.on('end', () => {
+          resolve(Buffer.concat(chunks));
+        });
+
+        downloadStream.on('error', (_error: Error) => {
+          reject(new NotFoundException('Raw data not found or could not be read'));
+        });
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Invalid raw data reference');
+    }
+  }
+
   async getStorageStats() {
     try {
       if (!this.conn.db) {

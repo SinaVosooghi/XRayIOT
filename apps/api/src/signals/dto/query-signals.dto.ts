@@ -57,4 +57,42 @@ export class QuerySignalsDto implements BaseQuerySignalsDto {
   @IsOptional()
   @IsString()
   fields?: string;
+
+  @ApiProperty({ description: 'Minimum latitude for location filtering', required: false })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
+  @Type(() => Number)
+  @IsNumber()
+  minLat?: number;
+
+  @ApiProperty({ description: 'Maximum latitude for location filtering', required: false })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
+  @Type(() => Number)
+  @IsNumber()
+  maxLat?: number;
+
+  @ApiProperty({ description: 'Minimum longitude for location filtering', required: false })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
+  @Type(() => Number)
+  @IsNumber()
+  minLon?: number;
+
+  @ApiProperty({ description: 'Maximum longitude for location filtering', required: false })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => parseFloat(String(value)))
+  @Type(() => Number)
+  @IsNumber()
+  maxLon?: number;
+
+  @ApiProperty({ description: 'Field to sort by', required: false })
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @ApiProperty({ description: 'Sort order (asc or desc)', required: false })
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc';
 }

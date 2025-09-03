@@ -1,6 +1,28 @@
 import { testInfrastructure, waitForCondition } from './test-infrastructure';
 import { config } from 'dotenv';
 import { PaginatedSignals, SignalDto } from '@iotp/shared-types';
+
+// Utility function for fetch with timeout
+const fetchWithTimeout = async (
+  url: string,
+  options: globalThis.RequestInit = {},
+  timeoutMs: number = 5000
+): Promise<globalThis.Response> => {
+  const controller = new globalThis.AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
 import {
   createCoordinateTestData,
   createSimpleTestData,
@@ -43,12 +65,82 @@ describe('Real Infrastructure Integration Tests', () => {
       } else {
         console.log('⚠️ Test infrastructure not detected as running');
       }
-      console.log('✅ Test infrastructure ready');
+
+      // CRITICAL: Verify all service connections before proceeding
+      console.log('🔍 Verifying service connections...');
+
+      // Verify API service
+      console.log(`📡 Testing API connection at ${testApiUrl}...`);
+      const apiResponse = await fetchWithTimeout(
+        `${testApiUrl}/api/health`,
+        {
+          method: 'GET',
+        },
+        5000
+      );
+      if (!apiResponse.ok) {
+        throw new Error(
+          `API service not responding: ${apiResponse.status} ${apiResponse.statusText}`
+        );
+      }
+      console.log('✅ API service is responding');
+
+      // Verify Producer service
+      console.log(`📡 Testing Producer connection at ${testProducerUrl}...`);
+      const producerResponse = await fetchWithTimeout(
+        `${testProducerUrl}/test/health`,
+        {
+          method: 'GET',
+        },
+        5000
+      );
+      if (!producerResponse.ok) {
+        throw new Error(
+          `Producer service not responding: ${producerResponse.status} ${producerResponse.statusText}`
+        );
+      }
+      console.log('✅ Producer service is responding');
+
+      // Verify Producer endpoint functionality
+      console.log('🧪 Testing Producer endpoint functionality...');
+      const testSignal = {
+        deviceId: 'connection-test',
+        capturedAt: new Date().toISOString(),
+        payload: Buffer.from(JSON.stringify({ test: 'connection' })).toString('base64'),
+        schemaVersion: 'v1',
+        metadata: {
+          location: { latitude: 52.52, longitude: 13.405, altitude: 34.0 },
+          battery: 85,
+          signalStrength: -65,
+        },
+      };
+
+      const testResponse = await fetchWithTimeout(
+        `${testProducerUrl}/test/send-raw`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testSignal),
+        },
+        10000
+      );
+
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        throw new Error(`Producer endpoint test failed: ${testResponse.status} - ${errorText}`);
+      }
+      console.log('✅ Producer endpoint is functional');
+
+      console.log('✅ All service connections verified successfully');
     } catch (error) {
-      console.error('❌ Failed to start test infrastructure:', error);
+      console.error('❌ Service connection verification failed:', error);
+      console.error('🔧 Please ensure Docker Compose services are running:');
+      console.error('   docker compose -f docker-compose.test-full.yml up -d');
+      console.error('🔧 Check service logs:');
+      console.error('   docker compose -f docker-compose.test-full.yml logs');
       throw error;
     }
-  }, 120000); // 2 minutes timeout for infrastructure setup
+  }, 30000); // 2 minutes timeout for infrastructure setup
 
   afterAll(async () => {
     console.log('🛑 Cleaning up test infrastructure...');
@@ -63,11 +155,24 @@ describe('Real Infrastructure Integration Tests', () => {
   }, 60000); // 1 minute timeout for cleanup
 
   beforeEach(async () => {
+    // Quick connection check before each test (fail fast)
+    try {
+      const apiHealth = await fetchWithTimeout(`${testApiUrl}/api/health`, {}, 3000);
+      const producerHealth = await fetchWithTimeout(`${testProducerUrl}/test/health`, {}, 3000);
+
+      if (!apiHealth.ok || !producerHealth.ok) {
+        throw new Error('Services not responding - aborting test');
+      }
+    } catch (error) {
+      console.error('❌ Quick connection check failed:', error);
+      throw error;
+    }
+
     // Clean up test data before each test
     await testInfrastructure.cleanup();
 
     // Wait for cleanup to complete
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
   });
 
   describe('Complete Data Flow - Real Infrastructure', () => {
@@ -113,7 +218,7 @@ describe('Real Infrastructure Integration Tests', () => {
       validateSignal(ourSignal!, COMMON_TEST_DEVICES.DEVICE_001, 3);
 
       console.log('✅ Data flow test completed successfully');
-    }, 60000); // 1 minute timeout
+    }, 30000); // 30 second timeout - reduced for faster failure
 
     it('should handle multiple devices simultaneously through real infrastructure', async () => {
       console.log('🧪 Testing multiple device processing...');
@@ -140,7 +245,7 @@ describe('Real Infrastructure Integration Tests', () => {
       expect(testSignal).toBeDefined();
 
       console.log('✅ Multiple device test completed successfully');
-    }, 60000);
+    }, 30000); // Reduced timeout
 
     it('should maintain data integrity through the real pipeline', async () => {
       console.log('🧪 Testing data integrity...');
@@ -459,7 +564,7 @@ describe('Real Infrastructure Integration Tests', () => {
       );
       expect(invalidCoordResponse.ok).toBe(true);
       const invalidCoordResult = (await invalidCoordResponse.json()) as { success: boolean };
-      expect(invalidCoordResult.success).toBe(true);
+      expect(invalidCoordResult.success).toBe(false); // Should reject invalid coordinates
 
       // Test missing required fields
       const missingFieldsData = {

@@ -8,6 +8,8 @@ import {
   validateMessage,
   generateIdempotencyKey,
   normalizeXRayPayload,
+  XRayRawSignal,
+  MessageValidator,
 } from '@iotp/shared-messaging';
 import { ErrorHandlingService } from '../error-handling/error-handling.service';
 import { XRayDocument, RawPayload } from '../types';
@@ -63,11 +65,10 @@ export class XRayConsumer {
     },
   })
   async processMessage(
-    message: LegacyPayload,
+    message: LegacyPayload | XRayRawSignal,
     amqpMsg: { properties: { messageId?: string; headers?: Record<string, unknown> } }
   ): Promise<void> {
     const messageId = amqpMsg.properties.messageId || 'unknown';
-    const deviceId = this.extractDeviceId(message);
     const correlationId = (amqpMsg.properties.headers?.['x-correlation-id'] as string) || 'unknown';
 
     // Add correlation ID to all logs
@@ -75,11 +76,11 @@ export class XRayConsumer {
 
     // Note: processingContext is defined but not currently used
     // It can be used for future error handling enhancements
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     const _processingContext: ProcessingContext = {
       id: messageId,
       messageId: messageId,
-      deviceId: deviceId,
+      deviceId: this.extractDeviceId(message),
       timestamp: new Date(),
       retryCount: 0,
       startTime: Date.now(),
@@ -88,20 +89,40 @@ export class XRayConsumer {
     try {
       const result = await this.errorHandlingService.withRetry(
         async () => {
-          this.logger.log(`Processing message: ${messageId} for device: ${deviceId}`);
+          this.logger.log(
+            `Processing message: ${messageId} for device: ${_processingContext.deviceId}`
+          );
 
-          // Validate message
-          const validationResult = validateMessage(message);
+          // Validate message - handle both legacy and new formats
+          let validationResult;
+          if (this.isXRayRawSignal(message)) {
+            validationResult = MessageValidator.validateRawSignal(message);
+          } else {
+            validationResult = validateMessage(message);
+          }
+
           if (!validationResult.valid) {
-            this.logger.error(`Invalid message: ${validationResult.errors.join(', ')}`);
+            this.logger.error(`Invalid message: ${validationResult.errors?.join(', ')}`);
             return false;
           }
 
-          // Normalize the payload
-          const normalized = normalizeXRayPayload(message);
+          // Normalize the payload - convert new format to legacy format if needed
+          let normalized: LegacyPayload;
+          if (this.isXRayRawSignal(message)) {
+            normalized = this.convertXRayRawSignalToLegacy(message);
+          } else {
+            // Convert GenericPayload to LegacyPayload format
+            const generic = normalizeXRayPayload(message);
+            normalized = {
+              [generic.deviceId]: {
+                data: generic.data,
+                time: generic.time,
+              },
+            };
+          }
 
-          // Generate idempotency key
-          const idempotencyKey = generateIdempotencyKey(message);
+          // Generate idempotency key - use normalized message for legacy format
+          const idempotencyKey = generateIdempotencyKey(normalized);
 
           // Check if already processed
           const existing = await this.xrayModel.findOne({ idempotencyKey });
@@ -113,18 +134,21 @@ export class XRayConsumer {
           // Store raw payload
           const rawRef = await this.rawStore.store(normalized as unknown as RawPayload);
 
-          // Calculate required fields
-          const dataLength = normalized.data ? normalized.data.length : 0;
+          // Calculate required fields - normalized is now always in legacy format
+          const deviceData = normalized[_processingContext.deviceId];
+          const dataLength = deviceData.data ? deviceData.data.length : 0;
           const dataVolume = JSON.stringify(message).length;
 
           // Convert time to Date if it's a number
           const time =
-            typeof normalized.time === 'number' ? new Date(normalized.time) : normalized.time;
+            typeof deviceData.time === 'number'
+              ? new Date(deviceData.time)
+              : new Date(deviceData.time);
 
           // Calculate location from first data point if available
           let location;
-          if (normalized.data && normalized.data.length > 0) {
-            const firstPoint = normalized.data[0];
+          if (deviceData.data && deviceData.data.length > 0) {
+            const firstPoint = deviceData.data[0];
             location = {
               type: 'Point' as const,
               coordinates: [firstPoint.lon, firstPoint.lat] as [number, number],
@@ -133,13 +157,15 @@ export class XRayConsumer {
 
           // Create signal record
           const signal = new this.xrayModel({
-            deviceId: normalized.deviceId,
+            deviceId: _processingContext.deviceId,
             time,
             dataLength,
             dataVolume,
             rawRef,
             idempotencyKey,
             location,
+            ingestedAt: new Date(),
+            status: 'processed',
           });
 
           await signal.save();
@@ -148,7 +174,7 @@ export class XRayConsumer {
           return true;
         },
         'processXRayMessage',
-        { messageId, deviceId }
+        { messageId, deviceId: _processingContext.deviceId }
       );
 
       // Log the result but don't return it
@@ -163,7 +189,10 @@ export class XRayConsumer {
     }
   }
 
-  private extractDeviceId(message: LegacyPayload): string {
+  private extractDeviceId(message: LegacyPayload | XRayRawSignal): string {
+    if (this.isXRayRawSignal(message)) {
+      return message.deviceId;
+    }
     if (typeof message === 'object' && message !== null) {
       // Legacy format: {"<deviceId>": { data, time }}
       const entries = Object.entries(message);
@@ -172,5 +201,63 @@ export class XRayConsumer {
       }
     }
     return 'unknown';
+  }
+
+  private isXRayRawSignal(message: unknown): message is XRayRawSignal {
+    return (
+      message !== null &&
+      typeof message === 'object' &&
+      'deviceId' in message &&
+      'capturedAt' in message &&
+      'payload' in message &&
+      'schemaVersion' in message &&
+      typeof (message as XRayRawSignal).deviceId === 'string' &&
+      typeof (message as XRayRawSignal).capturedAt === 'string' &&
+      typeof (message as XRayRawSignal).payload === 'string' &&
+      typeof (message as XRayRawSignal).schemaVersion === 'string'
+    );
+  }
+
+  private convertXRayRawSignalToLegacy(rawSignal: XRayRawSignal): LegacyPayload {
+    // Decode the payload
+    const payloadData = JSON.parse(Buffer.from(rawSignal.payload, 'base64').toString()) as {
+      data?: Array<{ timestamp?: number; coordinates: number[] }>;
+      coordinates?: number[];
+      timestamp?: number;
+      time?: number;
+    };
+
+    // Convert to legacy format - handle both old and new payload formats
+    let dataPoints: Array<{ timestamp: number; lat: number; lon: number; speed: number }>;
+    if (payloadData.data && Array.isArray(payloadData.data)) {
+      // New format: { data: [{ timestamp, coordinates }, ...], time }
+      dataPoints = payloadData.data.map(point => ({
+        timestamp: point.timestamp || Date.now(),
+        lat: point.coordinates[0],
+        lon: point.coordinates[1],
+        speed: 0, // Default speed if not provided
+      }));
+    } else if (payloadData.coordinates && Array.isArray(payloadData.coordinates)) {
+      // Old format: { timestamp, coordinates, time }
+      dataPoints = [
+        {
+          timestamp: payloadData.timestamp || Date.now(),
+          lat: payloadData.coordinates[0],
+          lon: payloadData.coordinates[1],
+          speed: 0, // Default speed if not provided
+        },
+      ];
+    } else {
+      dataPoints = [];
+    }
+
+    const legacyPayload: LegacyPayload = {
+      [rawSignal.deviceId]: {
+        data: dataPoints,
+        time: payloadData.time || new Date(rawSignal.capturedAt).getTime(),
+      },
+    };
+
+    return legacyPayload;
   }
 }
