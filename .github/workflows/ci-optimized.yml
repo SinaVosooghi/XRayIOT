@@ -297,7 +297,6 @@ jobs:
             yarn cache clean --all
             yarn install --immutable --network-timeout 300000
           }
-        retries: 2
         
       - name: Build applications
         run: |
@@ -306,7 +305,6 @@ jobs:
             echo "⚠️ Build failed, retrying..."
             yarn build
           }
-        retries: 2
         
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -366,7 +364,6 @@ jobs:
             yarn cache clean --all
             yarn install --immutable --network-timeout 300000
           }
-        retries: 2
         
       - name: Run security audit
         run: |
