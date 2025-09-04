@@ -32,6 +32,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/.yarn ./.yarn
 COPY --from=deps /app/.pnp.cjs ./.pnp.cjs
+COPY --from=deps /app/.yarnrc.yml ./.yarnrc.yml
 COPY --from=deps /app/yarn.lock ./
 COPY --from=deps /app/package.json ./
 
