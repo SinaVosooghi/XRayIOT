@@ -7,6 +7,9 @@
   "scripts": {
     "audit": "yarn audit",
     "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
+    "build:api": "nest build api",
+    "build:signals": "nest build signals",
+    "build:producer": "nest build producer",
     "lint": "eslint \"{src,apps,libs,test,e2e}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test,e2e}/**/*.ts\"",
     "type-check": "tsc --noEmit",
@@ -38,7 +41,13 @@
     "infra:down": "docker-compose -f docker/docker-compose.infrastructure.yml down",
     "infra:logs": "docker-compose -f docker/docker-compose.infrastructure.yml logs -f",
     "script:create-indexes": "ts-node scripts/create-indexes.ts",
-    "script:test-indexes": "ts-node scripts/test-indexes.ts"
+    "script:test-indexes": "ts-node scripts/test-indexes.ts",
+    "docker:build": "bash scripts/build-docker-optimized.sh",
+    "docker:build:api": "docker build -f apps/api/Dockerfile.optimized -t xrayiot/api:latest .",
+    "docker:build:signals": "docker build -f apps/signals/Dockerfile.optimized -t xrayiot/signals:latest .",
+    "docker:build:producer": "docker build -f apps/producer/Dockerfile.optimized -t xrayiot/producer:latest .",
+    "test:unit": "jest --testPathPatterns=apps --testPathIgnorePatterns=e2e",
+    "test:performance": "k6 run test/performance/load-test.js"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

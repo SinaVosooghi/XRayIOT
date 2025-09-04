@@ -1,0 +1,68 @@
+# Multi-stage build for production with optimization
+FROM node:22-alpine AS base
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    dumb-init \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nestjs
+
+# Stage 2: Dependencies (cached layer)
+FROM base AS deps
+WORKDIR /app
+
+# Copy package files for better caching
+COPY package.json yarn.lock* ./
+
+# Enable corepack and install dependencies
+RUN corepack enable \
+    && yarn install --immutable \
+    && yarn cache clean
+
+# Stage 3: Build (cached layer)
+FROM base AS builder
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/yarn.lock ./
+
+# Copy source code
+COPY . .
+
+# Build only the Producer app
+RUN corepack enable \
+    && yarn build:producer \
+    && yarn workspaces focus --production \
+    && yarn cache clean
+
+# Stage 4: Production (minimal)
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Copy built application and production dependencies
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/package.json ./
+
+# Switch to non-root user
+USER nestjs
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/test/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/apps/producer/src/main.js"]
