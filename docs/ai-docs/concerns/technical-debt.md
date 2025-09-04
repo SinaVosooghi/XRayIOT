@@ -2,6 +2,53 @@
 
 ## 🚨 **Critical Issues (Must Address Before P2)**
 
+### **TD-000: Architectural Debt (NEW)**
+**Priority**: 🔴 CRITICAL  
+**Status**: 🟡 Identified  
+**Created**: December 2024  
+**Assigned**: TBD
+
+**Description**: Comprehensive architectural improvements needed based on user feedback:
+- Module boundaries not enforced in monorepo
+- Message contracts lack versioning and idempotency
+- Validation not centralized across services
+- Configuration not properly typed and validated
+- Domain boundaries not clearly defined
+- Error handling lacks taxonomy and consistency
+- No correlation ID tracking throughout system
+- Storage layer not abstracted with repository pattern
+- API design lacks consistency in pagination and responses
+- Missing architecture documentation (ADRs)
+
+**Impact**:
+- Poor code maintainability and scalability
+- Difficult to prevent breaking changes
+- Inconsistent data validation across services
+- Configuration errors at runtime
+- Tight coupling between modules
+- Poor debugging and observability
+- Difficult to swap persistence layers
+- Inconsistent developer experience
+- Lack of architectural decision history
+
+**Resolution Required**:
+- Enforce module boundaries with ESLint rules
+- Add schema versioning and idempotency to message contracts
+- Implement global ValidationPipe with shared DTOs
+- Create typed configuration module with validation
+- Define explicit interfaces for bounded contexts
+- Create error taxonomy with exception filters
+- Implement correlation ID propagation
+- Create storage abstraction with repository pattern
+- Standardize API design and responses
+- Create ADRs and sequence diagrams
+
+**Effort Estimate**: 10-15 days  
+**Dependencies**: None  
+**Blockers**: None
+
+---
+
 ### **TD-001: Domain Mismatch**
 **Priority**: 🔴 CRITICAL  
 **Status**: 🟡 Identified  

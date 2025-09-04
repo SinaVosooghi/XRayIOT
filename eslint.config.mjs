@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import typescript from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import prettier from 'eslint-plugin-prettier';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   js.configs.recommended,
@@ -43,6 +44,7 @@ export default [
     plugins: {
       '@typescript-eslint': typescript,
       prettier: prettier,
+      import: importPlugin,
     },
     rules: {
       ...typescript.configs.recommended.rules,
@@ -57,6 +59,42 @@ export default [
       'no-var': 'error',
       'no-console': 'off',
       'prettier/prettier': 'error',
+      
+      // Module Boundary Rules
+      'import/no-restricted-paths': [
+        'error',
+        {
+          // Apps cannot import from other apps
+          zones: [
+            {
+              target: './apps/*',
+              from: './apps/*',
+              except: ['./apps/*/src/**'],
+              message: 'Apps cannot import from other apps. Use shared libraries instead.',
+            },
+            // Apps can only import from libs public APIs
+            {
+              target: './apps/*',
+              from: './libs/*/src/**',
+              except: ['./libs/*/src/index.ts'],
+              message: 'Apps must import from lib public APIs (index.ts) only.',
+            },
+            // Libs cannot import from apps
+            {
+              target: './libs/*',
+              from: './apps/*',
+              message: 'Libraries cannot import from apps. This creates circular dependencies.',
+            },
+            // Libs cannot import from other libs internal modules
+            {
+              target: './libs/*',
+              from: './libs/*/src/**',
+              except: ['./libs/*/src/index.ts', './libs/shared-types/src/**'],
+              message: 'Libraries must import from other libs public APIs (index.ts) only.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

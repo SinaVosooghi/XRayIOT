@@ -18,6 +18,10 @@ export * from './rmq/topology';
 export * from './schemas/xray.schema';
 export * from './validators/ajv';
 
+// Message Contracts
+export * from './contracts/message.contract';
+export * from './contracts/message.factory';
+
 export function normalizeXRayPayload(input: LegacyPayload): GenericPayload {
   // If already normalized
   if (input && typeof input === 'object' && 'deviceId' in input && 'data' in input) {
