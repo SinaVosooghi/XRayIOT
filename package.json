@@ -6,6 +6,7 @@
   "packageManager": "yarn@4.9.4",
   "scripts": {
     "audit": "yarn audit",
+    "postinstall": "yarn build || echo 'Postinstall build failed, continuing...'",
     "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
     "build:api": "nest build api",
     "build:signals": "nest build signals",
