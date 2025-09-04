@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
@@ -50,8 +50,8 @@ jobs:
             ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}-
             ${{ runner.os }}-yarn-
             
-      - name: Install dependencies (production only for linting)
-        run: yarn install --immutable --production=false
+      - name: Install dependencies
+        run: yarn install --immutable
         
       - name: Run linting
         run: yarn lint
@@ -73,7 +73,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
@@ -163,7 +163,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
@@ -219,7 +219,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
@@ -267,7 +267,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
@@ -316,7 +316,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+
           
       - name: Enable Corepack
         run: corepack enable
