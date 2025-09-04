@@ -383,18 +383,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ service }}-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ service }}-
+            ${{ runner.os }}-buildx-${{ matrix.service }}-
             ${{ runner.os }}-buildx-
             
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/${{ service }}/Dockerfile
+          file: ./apps/${{ matrix.service }}/Dockerfile
           push: false
-          tags: xrayiot/${{ service }}:latest
+          tags: xrayiot/${{ matrix.service }}:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           
