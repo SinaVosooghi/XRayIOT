@@ -31,3 +31,25 @@ export {
   MessageValidationContext,
   PaginatedSignals,
 } from './signals.types';
+
+// Export validation components
+export {
+  BaseValidationDto,
+  PaginationDto,
+  TimeRangeDto,
+  CoordinateDto,
+  DeviceMetadataDto,
+  DataPointDto,
+  UpdateSignalDto,
+  QuerySignalsDto,
+  DeviceStatusDto,
+  MessageValidationDto,
+  ErrorResponseDto,
+  HealthCheckDto,
+  ValidationGroups,
+} from './dto/validation.dto';
+export { ValidationService, ValidationResult } from './validation/validation.service';
+export {
+  GLOBAL_VALIDATION_OPTIONS,
+  createGlobalValidationPipe,
+} from './validation/global-validation.pipe';
