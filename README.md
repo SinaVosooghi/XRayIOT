@@ -306,6 +306,20 @@ yarn infra:logs
 
 ## 📚 Documentation
 
+### **Human Documentation** (`docs/human-docs/`)
+- **[Quick Start Guide](docs/human-docs/getting-started/quick-start.md)** - Get up and running in 5 minutes
+- **[Local Setup](docs/human-docs/development/local-setup.md)** - Complete development environment setup
+- **[System Architecture](docs/human-docs/architecture/system-overview.md)** - High-level system overview
+- **[Deployment Guide](docs/human-docs/operations/deployment.md)** - Production deployment instructions
+- **[API Reference](docs/human-docs/reference/api-reference.md)** - Complete API documentation
+
+### **AI Agent Documentation** (`docs/ai-docs/`)
+- **[Project Evolution](docs/ai-docs/context/project-evolution.md)** - Complete development timeline
+- **[Decision Log](docs/ai-docs/context/decision-log.md)** - Architectural decisions and rationale
+- **[Component Status](docs/ai-docs/tracking/component-status.md)** - Real-time system status
+- **[Technical Debt](docs/ai-docs/context/technical-debt.md)** - Known issues and resolution status
+
+### **Legacy Documentation**
 - **API Docs**: Swagger UI at `/api` endpoint
 - **Type Definitions**: Comprehensive TypeScript types
 - **Configuration**: Environment-based configuration
