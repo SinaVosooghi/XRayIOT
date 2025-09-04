@@ -31,6 +31,7 @@ WORKDIR /app
 # Copy dependencies and Yarn state from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/.yarn ./.yarn
+COPY --from=deps /app/.pnp.cjs ./.pnp.cjs
 COPY --from=deps /app/yarn.lock ./
 COPY --from=deps /app/package.json ./
 
