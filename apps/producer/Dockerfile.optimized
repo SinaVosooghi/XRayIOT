@@ -17,7 +17,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package files for better caching
-COPY package.json yarn.lock* ./
+COPY package.json yarn.lock* .yarnrc.yml ./
 
 # Enable corepack and install dependencies
 RUN corepack enable \
