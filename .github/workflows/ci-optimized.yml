@@ -433,7 +433,6 @@ jobs:
               --file ./apps/${{ matrix.service }}/Dockerfile.optimized \
               --tag xrayiot/${{ matrix.service }}:latest \
               --cache-from type=local,src=/tmp/.buildx-cache \
-              --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
               --build-arg NODE_OPTIONS=--max-old-space-size=4096 \
               --platform linux/amd64 \
               .; then
@@ -450,7 +449,7 @@ jobs:
             fi
           done
           
-      - name: Move cache
+      - name: Clean up cache
         run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          echo "🧹 Cleaning up build cache..."
+          rm -rf /tmp/.buildx-cache-new || true
