@@ -13,13 +13,11 @@ This directory contains the AI agent-specific documentation system designed for 
 
 ### **Current State (Tracking)**
 - `tracking/component-status.md` - Real-time status of all components
-- `tracking/dependency-graph.md` - System relationships and dependencies
-- `tracking/performance-metrics.md` - Current performance data
+- `tracking/development-status.md` - Development progress and milestones
 
 ### **Issues & Concerns**
-- `concerns/technical-debt.md` - Known issues and their resolution status
-- `concerns/security-concerns.md` - Security issues and mitigations
-- `concerns/scalability-concerns.md` - Performance bottlenecks
+- `context/technical-debt.md` - Known issues and their resolution status
+- `context/feedback-analysis.md` - Critical issues and improvement plan
 
 ### **Session Management**
 - `context/agent-sessions/` - Per-session context and decisions
