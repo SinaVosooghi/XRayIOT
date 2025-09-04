@@ -28,6 +28,10 @@ RUN corepack enable \
 FROM base AS builder
 WORKDIR /app
 
+# Accept build args for Node.js optimization
+ARG NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=$NODE_OPTIONS
+
 # Copy dependencies and Yarn state from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/.yarn ./.yarn
@@ -52,7 +56,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Copy built application and production dependencies
-COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/apps/producer/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./
 
