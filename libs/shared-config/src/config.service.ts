@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
+import {
+  getEnvironmentConfig,
+  validateEnvironmentConfig,
+  EnvironmentConfig,
+} from './config/environment.config';
 
 // Configuration interfaces for better typing
 export interface DatabaseConfig {
@@ -70,8 +75,69 @@ export interface ProducerConfig {
 }
 
 @Injectable()
-export class ConfigService {
+export class ConfigService implements OnModuleInit {
+  private environmentConfig!: EnvironmentConfig;
+
   constructor(private readonly cfg: NestConfigService) {}
+
+  onModuleInit() {
+    // Initialize environment-specific configuration
+    this.environmentConfig = getEnvironmentConfig(this.nodeEnv);
+
+    // Skip validation in test environment if explicitly disabled
+    if (this.nodeEnv === 'test' && process.env.SKIP_CONFIG_VALIDATION === 'true') {
+      console.log('⏭️ Skipping configuration validation in test environment');
+      return;
+    }
+
+    try {
+      // Validate environment-specific configuration
+      validateEnvironmentConfig(this.environmentConfig);
+
+      // Validate required environment variables
+      this.validateRequiredConfig();
+
+      console.log('✅ Configuration validated successfully');
+      console.log(`🌍 Environment: ${this.nodeEnv}`);
+      console.log(`🚀 Port: ${this.port}`);
+      console.log(`🗄️ Database: ${this.database.uri}`);
+      console.log(`🐰 RabbitMQ: ${this.rabbitmq.uri}`);
+      console.log(`🔴 Redis: ${this.redis.uri}`);
+      console.log(`💾 Storage: ${this.storage.rawStore}`);
+    } catch (error) {
+      console.error('❌ Configuration validation failed:', (error as Error).message);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate required configuration based on environment
+   */
+  private validateRequiredConfig(): void {
+    // Always required
+    if (!this.cfg.get<string>('MONGO_URI')) {
+      throw new Error('MONGO_URI environment variable is required');
+    }
+    if (!this.cfg.get<string>('RABBITMQ_URI')) {
+      throw new Error('RABBITMQ_URI environment variable is required');
+    }
+    if (!this.cfg.get<string>('REDIS_URI')) {
+      throw new Error('REDIS_URI environment variable is required');
+    }
+
+    // Environment-specific requirements
+    if (this.environmentConfig.security.requireApiKey && !this.cfg.get<string>('API_KEY')) {
+      throw new Error('API_KEY environment variable is required in this environment');
+    }
+    if (this.environmentConfig.security.requireHmacSecret) {
+      const hmacSecret = this.cfg.get<string>('HMAC_SECRET_KEY');
+      if (!hmacSecret || hmacSecret.length < this.environmentConfig.security.minHmacSecretLength) {
+        throw new Error(
+          `HMAC_SECRET_KEY is required and must be at least ${this.environmentConfig.security.minHmacSecretLength} characters`
+        );
+      }
+    }
+  }
 
   // Node Environment
   get nodeEnv(): string {
@@ -275,7 +341,51 @@ export class ConfigService {
     return this.nodeEnv === 'test';
   }
 
-  // Validation method
+  // Environment-specific configuration getters
+  get environment(): EnvironmentConfig {
+    return this.environmentConfig;
+  }
+
+  get features() {
+    return this.environmentConfig.features;
+  }
+
+  get environmentSecurity() {
+    return this.environmentConfig.security;
+  }
+
+  get logging() {
+    return this.environmentConfig.logging;
+  }
+
+  // Feature flags
+  isFeatureEnabled(feature: keyof EnvironmentConfig['features']): boolean {
+    return this.environmentConfig.features[feature];
+  }
+
+  // Get configuration for a specific service
+  getServiceConfig(service: 'api' | 'producer' | 'signals') {
+    const portMap = {
+      api: this.cfg.get<number>('API_PORT') || 3000,
+      producer: this.cfg.get<number>('PRODUCER_PORT') || 3001,
+      signals: this.cfg.get<number>('SIGNALS_PORT') || 3002,
+    };
+
+    const urlMap = {
+      api: this.cfg.get<string>('API_BASE_URL') || 'http://localhost:3000',
+      producer: this.cfg.get<string>('PRODUCER_BASE_URL') || 'http://localhost:3001',
+      signals: this.cfg.get<string>('SIGNALS_BASE_URL') || 'http://localhost:3002',
+    };
+
+    return {
+      port: portMap[service],
+      url: urlMap[service],
+      environment: this.nodeEnv,
+      features: this.features,
+    };
+  }
+
+  // Enhanced validation method
   validate(): void {
     // Basic validation
     if (!this.database.uri) {
@@ -287,5 +397,9 @@ export class ConfigService {
     if (!this.redis.uri) {
       throw new Error('REDIS_URI is required');
     }
+
+    // Environment-specific validation
+    validateEnvironmentConfig(this.environmentConfig);
+    this.validateRequiredConfig();
   }
 }

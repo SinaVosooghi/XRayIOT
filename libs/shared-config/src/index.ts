@@ -15,6 +15,14 @@ export type {
   ProducerConfig,
 } from './config.service';
 
+// Environment Configuration
+export type { EnvironmentConfig } from './config/environment.config';
+export {
+  getEnvironmentConfig,
+  validateEnvironmentConfig,
+  environmentConfigs,
+} from './config/environment.config';
+
 // Configuration Schema
 export {
   configSchema,
