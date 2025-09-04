@@ -251,10 +251,8 @@ jobs:
           cp env.test.example .env.test
           echo "NODE_ENV=test" >> $GITHUB_ENV
         
-      - name: Run E2E tests
-        run: |
-          export $(grep -v '^#' .env.test | grep -v '^$' | xargs)
-          yarn test:e2e --maxWorkers=1 --detectOpenHandles --forceExit
+      - name: Run E2E tests with infrastructure
+        run: ./scripts/test-e2e.sh
 
   # Build job (only runs after all tests pass)
   build:
